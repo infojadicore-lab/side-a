@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, fingerprint, get, post } from '../../lib/api.js';
 import type { BoardEntry, Song } from '../../lib/types.js';
 import { YouTubeLogo, isYouTubeUrl } from '../../lib/youtube.js';
+import { SignInButton, readToken, useSignedIn } from '../../components/SignInButton.js';
 
 type ReactionKind = 'repeat' | 'needed' | 'skip';
 
@@ -114,6 +115,9 @@ function SongRow({ song }: { song: Song }): React.ReactElement {
 export function SongPage(): React.ReactElement {
   const [songs, setSongs] = useState<Song[] | null>(null);
   const [board, setBoard] = useState<BoardEntry[] | null>(null);
+  const [needsAuth, setNeedsAuth] = useState(false);
+  const signedIn = useSignedIn();
+  const promptRef = useRef<HTMLDivElement>(null);
 
   const loadBoard = useCallback(() => {
     void get<{ board: BoardEntry[] }>('/api/board')
@@ -136,23 +140,28 @@ export function SongPage(): React.ReactElement {
     };
   }, [loadBoard]);
 
+  useEffect(() => {
+    if (signedIn) setNeedsAuth(false);
+  }, [signedIn]);
+
   const vote = (id: string, direction: 'up' | 'down'): void => {
-    let token: string | null = null;
-    try {
-      token = localStorage.getItem('side-a-google-id-token');
-    } catch {
-      token = null;
-    }
-    if (!token) {
-      alert('Please sign in with Google to vote.');
+    if (!readToken()) {      setNeedsAuth(true);
+      requestAnimationFrame(() => promptRef.current?.scrollIntoView({ block: 'nearest' }));
       return;
     }
+    setNeedsAuth(false);
     void api(`/api/board/${id}/vote`, {
       method: 'POST',
       body: JSON.stringify({ direction }),
       auth: true,
     }).then((res) => {
       if (!res.ok) {
+        if (res.status === 401) {
+          // Expired or invalid token — prompt a fresh sign-in, no dead-end alert.
+          setNeedsAuth(true);
+          requestAnimationFrame(() => promptRef.current?.scrollIntoView({ block: 'nearest' }));
+          return;
+        }
         alert((res.body as { error?: string }).error ?? 'Vote failed');
         return;
       }
@@ -180,6 +189,14 @@ export function SongPage(): React.ReactElement {
       </div>
       <div className="card" style={{ marginTop: 16, padding: '6px 20px' }}>
         <p className="panel-label">Board — top 12 this week</p>
+        {!signedIn || needsAuth ? (
+          <div ref={promptRef} style={{ display: 'flex', gap: 12, alignItems: 'center', margin: '8px 0 12px' }}>
+            <p className="board-empty" style={{ padding: 0 }}>
+              {needsAuth ? 'Sign in to vote — your pick counts.' : 'Sign in with Google to vote.'}
+            </p>
+            <SignInButton contextLabel="voting" />
+          </div>
+        ) : null}
         {board === null ? (
           <p className="board-empty">Loading board…</p>
         ) : board.length === 0 ? (
