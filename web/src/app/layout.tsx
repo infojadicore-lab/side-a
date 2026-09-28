@@ -27,12 +27,21 @@ function ScrollToTop(): null {
 
 export function WaveformBlock(): React.ReactElement {
   const bars = 46;
+  const period = 1.6;
+  const phases = 16;
   return (
     <div className="waveform" aria-hidden="true">
       {Array.from({ length: bars }, (_, i) => {
         const h = 6 + Math.round(Math.abs(Math.sin(i * 0.7)) * 26 + Math.random() * 6);
         const opacity = (0.5 + Math.random() * 0.5).toFixed(2);
-        return <span key={i} style={{ height: `${h}px`, opacity }} />;
+        // Negative stagger so bars start mid-cycle (smooth wave, no sync pop).
+        const delay = (-((i % phases) / phases) * period).toFixed(2);
+        return (
+          <span
+            key={i}
+            style={{ height: `${h}px`, opacity, animationDelay: `${delay}s`, animationDuration: `${period}s` }}
+          />
+        );
       })}
     </div>
   );
@@ -87,7 +96,6 @@ function Shell(): React.ReactElement {
       <div className="wrap">
         <Outlet />
         <CartBar />
-        <footer className="foot">Side A Lagos — a monthly album listening brunch. Prototype for internal review.</footer>
       </div>
     </>
   );

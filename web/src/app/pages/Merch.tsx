@@ -37,7 +37,7 @@ export function MerchPage(): React.ReactElement {
         {items === null ? (
           <p className="board-empty">Loading merch…</p>
         ) : items.length === 0 ? (
-          <p className="board-empty">{failed ? 'Failed to load merch.' : 'No merch yet — create items in admin.'}</p>
+          <p className="board-empty">{failed ? 'Failed to load merch.' : 'Coming soon.......'}</p>
         ) : (
           items.map((m) => (
             <div key={m.sku} className="card merch-card">

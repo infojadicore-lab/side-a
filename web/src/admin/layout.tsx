@@ -96,10 +96,6 @@ export function AdminShell(): React.ReactElement {
           </p>
         ) : null}
         <Outlet />
-        <footer className="foot">
-          Side A Admin — same plum/gold system as public (`--plum-950`, `--gold`, Fraunces/Space Grotesk, 760px).
-          Gateway deferred until pre-shipping.
-        </footer>
       </div>
     </>
   );

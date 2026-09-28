@@ -45,7 +45,7 @@ export function EditionsPage(): React.ReactElement {
         record together.
       </p>
       {total === 0 && past && upcoming ? (
-        <p className="board-empty">No editions yet — created editions will appear here.</p>
+        <p className="board-empty">Upcoming and past editions would be shown here.</p>
       ) : (
         <>
           <div style={{ marginTop: 28 }}>

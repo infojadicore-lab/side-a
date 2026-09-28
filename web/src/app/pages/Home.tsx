@@ -101,7 +101,7 @@ export function HomePage(): React.ReactElement {
           </div>
         ) : (
           <div className="card">
-            <p className="board-empty">No upcoming edition — create one in admin.</p>
+            <p className="board-empty">No upcoming edition yet. Stay jiggy 😉</p>
           </div>
         )}
       </div>

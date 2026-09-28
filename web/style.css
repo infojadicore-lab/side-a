@@ -72,7 +72,21 @@
   .hero h1 { font-size: 40px; line-height: 1.15; max-width: 12ch; }
   .hero-tag { font-size: 15px; color: var(--muted); margin-top: 14px; max-width: 40ch; }
   .waveform { display: flex; align-items: flex-end; gap: 3px; height: 34px; margin: 22px 0 26px; }
-  .waveform span { width: 3px; background: var(--gold); border-radius: 2px; opacity: 0.85; }
+  .waveform span {
+    width: 3px; background: var(--gold); border-radius: 2px; opacity: 0.85;
+    transform-origin: bottom;
+    animation-name: waveform-bounce;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+  }
+  @keyframes waveform-bounce {
+    from { transform: scaleY(0.35); }
+    to { transform: scaleY(1); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .waveform span { animation: none; }
+  }
   .card {
     border: 1px solid var(--line); border-radius: var(--radius);
     padding: 18px 20px; background: var(--plum-900);
