@@ -1,9 +1,19 @@
 import { useState } from 'react';
 
+const YOUTUBE_PATTERNS = [
+  // watch / embed on youtube.com + music + mobile subdomains
+  /(?:(?:www|music|m)\.)?youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)([A-Za-z0-9_-]{11})/,
+  // youtu.be short links, optional timestamp/query
+  /youtu\.be\/([A-Za-z0-9_-]{11})/,
+];
+
 export function parseYouTubeId(url: string | null | undefined): string | null {
   if (!url) return null;
-  const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
-  return m?.[1] ?? null;
+  for (const re of YOUTUBE_PATTERNS) {
+    const m = url.match(re);
+    if (m?.[1]) return m[1];
+  }
+  return null;
 }
 
 export function isYouTubeUrl(url: string | null | undefined): boolean {

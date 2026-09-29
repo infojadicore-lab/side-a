@@ -69,8 +69,19 @@ export async function voteOnRecommendation(
   return rows[0] as BoardRow;
 }
 
-export async function pickBoardEntry(id: string): Promise<{ songId: string; archivedCount: number }> {
-  const recs = await sql<{ id: string; name: string; track: string; why: string; link: string | null }[]>`
+// Mirrors web/src/lib/youtube.tsx: accept watch/embed/shorts/live + short links.
+const YOUTUBE_PATTERNS = [
+  /(?:(?:www|music|m)\.)?youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)([A-Za-z0-9_-]{11})/,
+  /youtu\.be\/([A-Za-z0-9_-]{11})/,
+];
+
+export function extractYouTubeUrl(link: string | null | undefined): string | null {
+  if (!link) return null;
+  const ok = YOUTUBE_PATTERNS.some((re) => re.test(link));
+  return ok ? link : null;
+}
+
+export async function pickBoardEntry(id: string): Promise<{ songId: string; archivedCount: number }> {  const recs = await sql<{ id: string; name: string; track: string; why: string; link: string | null }[]>`
     select id, name, track, why, link from recommendations where id = ${id} and status = 'queued'
   `;
   if (recs.length === 0) throw Object.assign(new Error('Not found or not queued'), { statusCode: 404 });
@@ -81,12 +92,16 @@ export async function pickBoardEntry(id: string): Promise<{ songId: string; arch
   const title = (parts[0] ?? rec.track).trim();
   const artist = (parts[1] ?? 'Unknown').trim();
 
+  // Carry the submission link onto the song when it's a YouTube URL so the
+  // Song-of-the-week player works without manual backfill.
+  const youtubeUrl = extractYouTubeUrl(rec.link);
+
   const maxWeek = await sql<{ max: number | null }[]>`select max(week_number) as max from songs`;
   const nextWeek = ((maxWeek[0] as { max: number | null }).max ?? 0) + 1;
 
   const songRows = await sql<{ id: string }[]>`
-    insert into songs (week_number, title, artist, picked_by, note, is_current)
-    values (${nextWeek}, ${title}, ${artist}, ${rec.name}, ${rec.why}, true)
+    insert into songs (week_number, title, artist, picked_by, note, is_current, youtube_url)
+    values (${nextWeek}, ${title}, ${artist}, ${rec.name}, ${rec.why}, true, ${youtubeUrl})
     returning id
   `;
   const songId = (songRows[0] as { id: string }).id;

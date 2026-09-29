@@ -4,6 +4,7 @@ import { get } from '../../lib/api.js';
 import type { HomeData, Song } from '../../lib/types.js';
 import { formatEditionDate, naira } from '../../lib/format.js';
 import { WaveformBlock } from '../layout.js';
+import { YouTubeLogo, isYouTubeUrl } from '../../lib/youtube.js';
 
 export function HomePage(): React.ReactElement {
   const [home, setHome] = useState<HomeData | null>(null);
@@ -56,7 +57,12 @@ export function HomePage(): React.ReactElement {
           </div>
         ) : now ? (
           <div className="card">
-            <p className="track-title">{now.title}</p>
+            <p className="track-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {now.title}
+              {(now.youtube_url ?? now.link) && isYouTubeUrl(now.youtube_url ?? now.link ?? null) ? (
+                <YouTubeLogo url={(now.youtube_url ?? now.link) as string} />
+              ) : null}
+            </p>
             <p className="track-meta">
               Picked by {now.picked_by} · week {now.week_number}
             </p>

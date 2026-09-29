@@ -8,6 +8,7 @@ export async function getHome(): Promise<{
     artist: string;
     picked_by: string;
     note: string;
+    youtube_url: string | null;
   } | null;
   nextEdition: {
     id: string;
@@ -28,8 +29,8 @@ export async function getHome(): Promise<{
   latestUpdate: { id: string; date: string; title: string; description: string } | null;
 }> {
   const [nowRows, editionRows, updateRows] = await Promise.all([
-    sql<{ id: string; week_number: number; title: string; artist: string; picked_by: string; note: string }[]>`
-      select id, week_number, title, artist, picked_by, note from songs where is_current = true limit 1
+    sql<{ id: string; week_number: number; title: string; artist: string; picked_by: string; note: string; youtube_url: string | null }[]>`
+      select id, week_number, title, artist, picked_by, note, youtube_url from songs where is_current = true limit 1
     `,
     sql<{ id: string; idx: number; album: string; artist: string; date: string; venue: string; price: number; capacity: number; spots_sold: number; tix_africa_url: string | null; name: string; kind: string; meta: Record<string, unknown> | null }[]>`
       select id, idx, album, artist, date, venue, price, capacity, spots_sold, tix_africa_url, name, kind, meta

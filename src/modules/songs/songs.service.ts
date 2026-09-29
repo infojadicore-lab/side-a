@@ -11,13 +11,14 @@ export type SongRow = {
   reaction_repeat: number;
   reaction_needed: number;
   reaction_skip: number;
+  youtube_url: string | null;
 };
 
 export type CommentRow = { id: string; song_id: string; who: string; text: string; created_at: string };
 
 export async function listSongs(): Promise<(SongRow & { comments: CommentRow[] })[]> {
   const songs = await sql<SongRow[]>`
-    select id, week_number, title, artist, picked_by, note, is_current, reaction_repeat, reaction_needed, reaction_skip
+    select id, week_number, title, artist, picked_by, note, is_current, reaction_repeat, reaction_needed, reaction_skip, youtube_url
     from songs order by week_number desc
   `;
   const comments = await sql<CommentRow[]>`
@@ -45,7 +46,7 @@ export async function toggleReaction(songId: string, kind: 'repeat' | 'needed' |
     await sql`insert into song_reactions (song_id, kind, fingerprint) values (${songId}, ${kind}, ${fingerprint})`;
     await sql.unsafe(`update songs set ${col} = ${col} + 1 where id = $1`, [songId]);
   }
-  const rows = await sql<SongRow[]>`select id, week_number, title, artist, picked_by, note, is_current, reaction_repeat, reaction_needed, reaction_skip from songs where id = ${songId}`;
+  const rows = await sql<SongRow[]>`select id, week_number, title, artist, picked_by, note, is_current, reaction_repeat, reaction_needed, reaction_skip, youtube_url from songs where id = ${songId}`;
   if (rows.length === 0) throw new Error('Song not found');
   return rows[0] as SongRow;
 }
