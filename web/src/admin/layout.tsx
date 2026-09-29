@@ -85,7 +85,9 @@ export function AdminShell(): React.ReactElement {
               </Link>
             ))}
           </nav>
-          <GoogleSignIn />
+          <div className="admin-auth">
+            <GoogleSignIn />
+          </div>
         </div>
       </header>
       <div className="wrap">

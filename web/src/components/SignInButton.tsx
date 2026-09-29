@@ -24,6 +24,30 @@ export function readToken(): string | null {
   }
 }
 
+// Display-only name from the ID token payload (given name → full name → email
+// handle). Never used for authorization — the server verifies the token.
+export function displayNameFromToken(token: string | null): string | null {
+  if (!token) return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  try {
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'))) as {
+      given_name?: string;
+      name?: string;
+      email?: string;
+    };
+    const given = (payload.given_name ?? '').trim();
+    if (given) return given.split(' ')[0];
+    const full = (payload.name ?? '').trim();
+    if (full) return full.split(' ')[0];
+    const email = (payload.email ?? '').trim();
+    if (email.includes('@')) return email.split('@')[0];
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function useSignedIn(): boolean {
   const [signedIn, setSignedIn] = useState<boolean>(() => readToken() !== null);
   useEffect(() => {
@@ -62,7 +86,15 @@ export function SignInButton({ contextLabel = 'sign-in' }: { contextLabel?: stri
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
   const signedIn = useSignedIn();
   const [failed, setFailed] = useState(false);
+  const [displayName, setDisplayName] = useState<string | null>(() => displayNameFromToken(readToken()));
   const btnRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const syncName = (): void => setDisplayName(displayNameFromToken(readToken()));
+    syncName();
+    window.addEventListener(AUTH_EVENT, syncName);
+    return () => window.removeEventListener(AUTH_EVENT, syncName);
+  }, []);
 
   useEffect(() => {
     if (!clientId || signedIn) return;
@@ -113,10 +145,10 @@ export function SignInButton({ contextLabel = 'sign-in' }: { contextLabel?: stri
   if (signedIn) {
     return (
       <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
-        <span className="pill" style={{ color: 'var(--gold)', borderColor: 'var(--gold)' }}>
-          Signed in
+        <span className="pill pill-accent" title="Signed in with Google">
+          Signed in{displayName ? `, ${displayName}` : ''}
         </span>
-        <button type="button" className="btn small" onClick={signOut}>
+        <button type="button" className="btn small signout" onClick={signOut}>
           Sign out
         </button>
       </span>

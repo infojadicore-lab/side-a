@@ -65,6 +65,17 @@
   }
   nav.tabs button:hover, nav.tabs a:hover { color: var(--cream); }
   nav.tabs button[aria-current="page"], nav.tabs a[aria-current="page"] { color: var(--gold); }
+  .top-inner .brand { flex-shrink: 0; }
+  nav.tabs#admin-tabs { flex: 1 1 auto; min-width: 0; }
+  .admin-auth { display: flex; gap: 8px; align-items: center; flex-shrink: 0; margin-left: 12px; }
+  .admin-auth .pill, .admin-auth .btn { white-space: nowrap; }
+  .pill-accent { color: var(--gold); border-color: var(--gold); }
+  .admin-auth .btn.signout { border-color: var(--gold-dim); color: var(--gold); background: transparent; }
+  .admin-auth .btn.signout:hover { background: var(--gold); border-color: var(--gold); color: var(--plum-950); }
+  @media (max-width: 720px) {
+    header.top .top-inner { flex-wrap: wrap; }
+    .admin-auth { margin-left: 0; }
+  }
   section.screen { display: none; padding: 40px 0 80px; }
   section.screen.active { display: block; }
   .eyebrow { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
