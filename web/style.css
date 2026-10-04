@@ -36,9 +36,9 @@
     pointer-events: none;
     background-image: url("./src/assets/white.png");
     background-repeat: no-repeat;
-    background-position: 50% 38%;
-    background-size: min(88vw, 620px) auto;
-    opacity: 0.055;
+    background-position: 50% 50%;
+    background-size: min(92vw, 720px) auto;
+    opacity: 0.11;
   }
   html { scroll-padding-top: env(safe-area-inset-top, 0px); }
   body {
