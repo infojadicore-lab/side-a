@@ -6,6 +6,26 @@ import { SignInButton, displayNameFromToken, readToken, useSignedIn } from '../.
 
 type ReactionKind = 'repeat' | 'needed' | 'skip';
 
+// Filled triangles, one set for both vote buttons. fill="currentColor" lets
+// hover/active/disabled CSS recolor them with no extra assets; up/down carry
+// no reading-direction meaning so they never flip in RTL.
+// (.agents/skills/better-ui/icons.md)
+function VoteUpIcon(): React.ReactElement {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path d="M8 3.5 13.5 12.5h-11z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function VoteDownIcon(): React.ReactElement {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path d="M8 12.5 2.5 3.5h11z" fill="currentColor" />
+    </svg>
+  );
+}
+
 function SongRow({ song }: { song: Song }): React.ReactElement {
   const [counts, setCounts] = useState({
     repeat: song.reaction_repeat,
@@ -259,10 +279,10 @@ export function SongPage(): React.ReactElement {
                 <p className="board-note">{e.why}</p>
                 <div className="board-votes">
                   <button type="button" className="vote-btn" onClick={() => vote(e.id, 'up')}>
-                    ▲ Upvote ({e.upvotes})
+                    <VoteUpIcon /> Upvote ({e.upvotes})
                   </button>
                   <button type="button" className="vote-btn" onClick={() => vote(e.id, 'down')}>
-                    ▼ Downvote ({e.downvotes})
+                    <VoteDownIcon /> Downvote ({e.downvotes})
                   </button>
                 </div>
               </div>

@@ -62,6 +62,32 @@ export function useSignedIn(): boolean {
   return signedIn;
 }
 
+// Google "G" brand mark. Brand marks keep their brand colors (never
+// currentColor) and never flip in RTL — see .agents/skills/better-ui/icons.md.
+// Chunky shape stays legible at the 16–18px sizes it renders at.
+export function GoogleGIcon(): React.ReactElement {
+  return (
+    <svg className="g-icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+      <path
+        fill="#FFC107"
+        d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.3 6.1 29.4 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.7-.4-3.9z"
+      />
+      <path
+        fill="#FF3D00"
+        d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.3 6.1 29.4 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"
+      />
+      <path
+        fill="#4CAF50"
+        d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"
+      />
+      <path
+        fill="#1976D2"
+        d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C36.9 39.2 44 34 44 24c0-1.3-.1-2.7-.4-3.9z"
+      />
+    </svg>
+  );
+}
+
 function loadGisScript(): Promise<void> {
   if (window.google?.accounts?.id) return Promise.resolve();
   return new Promise((resolve, reject) => {
@@ -86,6 +112,7 @@ export function SignInButton({ contextLabel = 'sign-in' }: { contextLabel?: stri
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
   const signedIn = useSignedIn();
   const [failed, setFailed] = useState(false);
+  const [gisReady, setGisReady] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(() => displayNameFromToken(readToken()));
   const btnRef = useRef<HTMLDivElement>(null);
 
@@ -114,6 +141,7 @@ export function SignInButton({ contextLabel = 'sign-in' }: { contextLabel?: stri
           },
         });
         window.google.accounts.id.renderButton(btnRef.current, { theme: 'filled_black', size: 'medium' });
+        if (!cancelled) setGisReady(true);
       })
       .catch(() => {
         if (!cancelled) setFailed(true);
@@ -134,18 +162,25 @@ export function SignInButton({ contextLabel = 'sign-in' }: { contextLabel?: stri
 
   if (!clientId) {
     return (
-      <span className="pill" title={`Set VITE_GOOGLE_CLIENT_ID to enable ${contextLabel}`}>
+      <span className="pill pill-with-icon" title={`Set VITE_GOOGLE_CLIENT_ID to enable ${contextLabel}`}>
+        <GoogleGIcon />
         Sign-in not configured
       </span>
     );
   }
   if (failed) {
-    return <span className="pill">Google sign-in failed to load</span>;
+    return (
+      <span className="pill pill-with-icon">
+        <GoogleGIcon />
+        Google sign-in failed to load
+      </span>
+    );
   }
   if (signedIn) {
     return (
       <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
-        <span className="pill pill-accent" title="Signed in with Google">
+        <span className="pill pill-accent pill-with-icon" title="Signed in with Google">
+          <GoogleGIcon />
           Signed in{displayName ? `, ${displayName}` : ''}
         </span>
         <button type="button" className="btn small signout" onClick={signOut}>
@@ -154,5 +189,20 @@ export function SignInButton({ contextLabel = 'sign-in' }: { contextLabel?: stri
       </span>
     );
   }
-  return <div ref={btnRef} style={{ minHeight: 40, display: 'inline-flex', alignItems: 'center' }} />;
+  // The GIS target stays mounted so the init effect always has a node;
+  // the branded placeholder covers it until Google's button is ready.
+  return (
+    <>
+      {!gisReady ? (
+        <button type="button" className="btn small" disabled>
+          <GoogleGIcon />
+          Sign in with Google
+        </button>
+      ) : null}
+      <div
+        ref={btnRef}
+        style={{ minHeight: 40, display: gisReady ? 'inline-flex' : 'none', alignItems: 'center' }}
+      />
+    </>
+  );
 }
