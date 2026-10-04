@@ -3,6 +3,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 export const AUTH_EVENT = 'side-a-auth';
 export const TOKEN_KEY = 'side-a-google-id-token';
 
+export interface PromptMoment {
+  isSkippedMoment(): boolean;
+  isDismissedMoment(): boolean;
+}
+
 declare global {
   interface Window {
     google?: {
@@ -10,6 +15,8 @@ declare global {
         id: {
           initialize: (opts: { client_id: string; callback: (res: { credential: string }) => void }) => void;
           renderButton: (el: HTMLElement, opts: Record<string, unknown>) => void;
+          prompt: (momentListener?: (m: PromptMoment) => void) => void;
+          cancel: () => void;
         };
       };
     };
@@ -108,11 +115,49 @@ function loadGisScript(): Promise<void> {
   });
 }
 
+function storeCredential(credential: string): void {
+  try {
+    localStorage.setItem(TOKEN_KEY, credential);
+  } catch {
+    /* private mode */
+  }
+  window.dispatchEvent(new Event(AUTH_EVENT));
+}
+
+function initGis(clientId: string): void {
+  window.google?.accounts.id.initialize({
+    client_id: clientId,
+    callback: (res) => storeCredential(res.credential),
+  });
+}
+
+// GIS init shared across every SignInButton instance on the page.
+let gisInitPromise: Promise<void> | null = null;
+
+function ensureGis(clientId: string): Promise<void> {
+  if (window.google?.accounts?.id) {
+    initGis(clientId);
+    return Promise.resolve();
+  }
+  if (!gisInitPromise) {
+    gisInitPromise = loadGisScript()
+      .then(() => {
+        initGis(clientId);
+      })
+      .catch((e: unknown) => {
+        gisInitPromise = null;
+        throw e;
+      });
+  }
+  return gisInitPromise;
+}
+
 export function SignInButton({ contextLabel = 'sign-in' }: { contextLabel?: string }): React.ReactElement {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
   const signedIn = useSignedIn();
   const [failed, setFailed] = useState(false);
-  const [gisReady, setGisReady] = useState(false);
+  const [gisLoaded, setGisLoaded] = useState(false);
+  const [useFallback, setUseFallback] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(() => displayNameFromToken(readToken()));
   const btnRef = useRef<HTMLDivElement>(null);
 
@@ -123,25 +168,13 @@ export function SignInButton({ contextLabel = 'sign-in' }: { contextLabel?: stri
     return () => window.removeEventListener(AUTH_EVENT, syncName);
   }, []);
 
+  // Preload GIS so One Tap opens instantly on click.
   useEffect(() => {
     if (!clientId || signedIn) return;
     let cancelled = false;
-    void loadGisScript()
+    void ensureGis(clientId)
       .then(() => {
-        if (cancelled || !btnRef.current || !window.google) return;
-        window.google.accounts.id.initialize({
-          client_id: clientId,
-          callback: (res) => {
-            try {
-              localStorage.setItem(TOKEN_KEY, res.credential);
-            } catch {
-              /* private mode */
-            }
-            window.dispatchEvent(new Event(AUTH_EVENT));
-          },
-        });
-        window.google.accounts.id.renderButton(btnRef.current, { theme: 'filled_black', size: 'medium' });
-        if (!cancelled) setGisReady(true);
+        if (!cancelled) setGisLoaded(true);
       })
       .catch(() => {
         if (!cancelled) setFailed(true);
@@ -150,6 +183,44 @@ export function SignInButton({ contextLabel = 'sign-in' }: { contextLabel?: stri
       cancelled = true;
     };
   }, [clientId, signedIn]);
+
+  // Fallback path only: render Google's own button when One Tap can't show.
+  useEffect(() => {
+    if (!useFallback || !gisLoaded || signedIn || !btnRef.current || !window.google) return;
+    window.google.accounts.id.renderButton(btnRef.current, { theme: 'filled_black', size: 'medium' });
+  }, [useFallback, gisLoaded, signedIn]);
+
+  // Dismiss any open One Tap prompt on unmount.
+  useEffect(
+    () => () => {
+      try {
+        window.google?.accounts.id.cancel();
+      } catch {
+        /* not initialized */
+      }
+    },
+    [],
+  );
+
+  const startSignIn = (): void => {
+    if (!window.google?.accounts?.id) {
+      // GIS not loaded yet — try once more, else show the failure pill.
+      if (!clientId) return;
+      void ensureGis(clientId)
+        .then(() => setGisLoaded(true))
+        .catch(() => setFailed(true));
+      return;
+    }
+    try {
+      window.google.accounts.id.prompt((moment) => {
+        // One Tap couldn't or wouldn't show (no session, dismissed,
+        // FedCM opt-out) — offer Google's own button instead.
+        if (moment.isSkippedMoment() || moment.isDismissedMoment()) setUseFallback(true);
+      });
+    } catch {
+      setUseFallback(true);
+    }
+  };
 
   const signOut = useCallback(() => {
     try {
@@ -189,20 +260,15 @@ export function SignInButton({ contextLabel = 'sign-in' }: { contextLabel?: stri
       </span>
     );
   }
-  // The GIS target stays mounted so the init effect always has a node;
-  // the branded placeholder covers it until Google's button is ready.
+  if (useFallback) {
+    return (
+      <div ref={btnRef} style={{ minHeight: 40, display: 'inline-flex', alignItems: 'center' }} />
+    );
+  }
   return (
-    <>
-      {!gisReady ? (
-        <button type="button" className="btn small" disabled>
-          <GoogleGIcon />
-          Sign in with Google
-        </button>
-      ) : null}
-      <div
-        ref={btnRef}
-        style={{ minHeight: 40, display: gisReady ? 'inline-flex' : 'none', alignItems: 'center' }}
-      />
-    </>
+    <button type="button" className="google-btn" onClick={startSignIn}>
+      <GoogleGIcon />
+      Continue with Google
+    </button>
   );
 }

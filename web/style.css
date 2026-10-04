@@ -271,6 +271,15 @@
   .vote-btn svg { width: 1em; height: 1em; flex-shrink: 0; }
   .g-icon { width: 1.125em; height: 1.125em; flex-shrink: 0; }
   .pill-with-icon { display: inline-flex; align-items: center; gap: 6px; }
+  .auth-prompt { display: flex; gap: 12px; align-items: center; margin: 12px 0 4px; flex-wrap: wrap; }
+  .google-btn {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: #fff; color: #1f1f1f; border: 1px solid #dadce0; border-radius: 999px;
+    padding: 10px 22px; font-size: 14.5px; font-weight: 500; font-family: inherit;
+    cursor: pointer; transition: background .15s;
+  }
+  .google-btn:hover { background: #f6fafe; }
+  .google-btn .g-icon { width: 18px; height: 18px; }
   .vote-btn:hover { border-color: var(--gold-dim); }
   .vote-btn.active { background: var(--gold); border-color: var(--gold); color: var(--plum-950); font-weight: 500; }
   .board-empty { color: var(--muted); font-size: 14px; padding: 18px 0; }

@@ -150,10 +150,10 @@ function SongRow({ song }: { song: Song }): React.ReactElement {
               </p>
             ))}
           </div>
-          {!signedIn || needsCommentAuth ? (
-            <div ref={commentPromptRef} style={{ display: 'flex', gap: 12, alignItems: 'center', margin: '12px 0 4px', flexWrap: 'wrap' }}>
+          {needsCommentAuth ? (
+            <div ref={commentPromptRef} className="auth-prompt">
               <p className="board-empty" style={{ padding: 0 }}>
-                {needsCommentAuth ? 'Sign in to comment — join the conversation.' : 'Sign in with Google to comment.'}
+                Sign in to comment — join the conversation.
               </p>
               <SignInButton contextLabel="commenting" />
             </div>
@@ -164,6 +164,13 @@ function SongRow({ song }: { song: Song }): React.ReactElement {
               placeholder="Add a comment"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
+              onFocus={() => {
+                // First real attempt at commenting — ask for sign-in here only.
+                if (!readToken()) {
+                  setNeedsCommentAuth(true);
+                  requestAnimationFrame(() => commentPromptRef.current?.scrollIntoView({ block: 'nearest' }));
+                }
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') submitComment();
               }}
@@ -181,9 +188,11 @@ function SongRow({ song }: { song: Song }): React.ReactElement {
 export function SongPage(): React.ReactElement {
   const [songs, setSongs] = useState<Song[] | null>(null);
   const [board, setBoard] = useState<BoardEntry[] | null>(null);
-  const [needsAuth, setNeedsAuth] = useState(false);
+  // The single board entry the user tried to vote on while signed out.
+  // The prompt renders under that entry's vote buttons — nowhere else.
+  const [authEntryId, setAuthEntryId] = useState<string | null>(null);
   const signedIn = useSignedIn();
-  const promptRef = useRef<HTMLDivElement>(null);
+  const votePromptRefs = useRef(new Map<string, HTMLDivElement>());
 
   const loadBoard = useCallback(() => {
     void get<{ board: BoardEntry[] }>('/api/board')
@@ -207,15 +216,20 @@ export function SongPage(): React.ReactElement {
   }, [loadBoard]);
 
   useEffect(() => {
-    if (signedIn) setNeedsAuth(false);
+    if (signedIn) setAuthEntryId(null);
   }, [signedIn]);
 
+  const scrollToVotePrompt = (id: string): void => {
+    requestAnimationFrame(() => votePromptRefs.current.get(id)?.scrollIntoView({ block: 'nearest' }));
+  };
+
   const vote = (id: string, direction: 'up' | 'down'): void => {
-    if (!readToken()) {      setNeedsAuth(true);
-      requestAnimationFrame(() => promptRef.current?.scrollIntoView({ block: 'nearest' }));
+    if (!readToken()) {
+      setAuthEntryId(id);
+      scrollToVotePrompt(id);
       return;
     }
-    setNeedsAuth(false);
+    setAuthEntryId(null);
     void api(`/api/board/${id}/vote`, {
       method: 'POST',
       body: JSON.stringify({ direction }),
@@ -224,8 +238,8 @@ export function SongPage(): React.ReactElement {
       if (!res.ok) {
         if (res.status === 401) {
           // Expired or invalid token — prompt a fresh sign-in, no dead-end alert.
-          setNeedsAuth(true);
-          requestAnimationFrame(() => promptRef.current?.scrollIntoView({ block: 'nearest' }));
+          setAuthEntryId(id);
+          scrollToVotePrompt(id);
           return;
         }
         alert((res.body as { error?: string }).error ?? 'Vote failed');
@@ -255,14 +269,6 @@ export function SongPage(): React.ReactElement {
       </div>
       <div className="card" style={{ marginTop: 16, padding: '6px 20px' }}>
         <p className="panel-label">Board — top 12 this week</p>
-        {!signedIn || needsAuth ? (
-          <div ref={promptRef} style={{ display: 'flex', gap: 12, alignItems: 'center', margin: '8px 0 12px' }}>
-            <p className="board-empty" style={{ padding: 0 }}>
-              {needsAuth ? 'Sign in to vote — your pick counts.' : 'Sign in with Google to vote.'}
-            </p>
-            <SignInButton contextLabel="voting" />
-          </div>
-        ) : null}
         {board === null ? (
           <p className="board-empty">Loading board…</p>
         ) : board.length === 0 ? (
@@ -285,6 +291,20 @@ export function SongPage(): React.ReactElement {
                     <VoteDownIcon /> Downvote ({e.downvotes})
                   </button>
                 </div>
+                {authEntryId === e.id ? (
+                  <div
+                    ref={(el) => {
+                      if (el) votePromptRefs.current.set(e.id, el);
+                      else votePromptRefs.current.delete(e.id);
+                    }}
+                    className="auth-prompt"
+                  >
+                    <p className="board-empty" style={{ padding: 0 }}>
+                      Sign in to vote — your pick counts.
+                    </p>
+                    <SignInButton contextLabel="voting" />
+                  </div>
+                ) : null}
               </div>
             </div>
           ))
