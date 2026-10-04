@@ -27,6 +27,19 @@
     color: var(--cream);
     min-height: 100%;
   }
+  /* Faint SIDE A watermark: fixed, behind all content, never interactive. */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: url("./src/assets/white.png");
+    background-repeat: no-repeat;
+    background-position: 50% 38%;
+    background-size: min(88vw, 620px) auto;
+    opacity: 0.055;
+  }
   html { scroll-padding-top: env(safe-area-inset-top, 0px); }
   body {
     font-family: 'Space Grotesk', sans-serif;
