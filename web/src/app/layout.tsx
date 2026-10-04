@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Link, Outlet, useLocation } from 'react-router';
 import { CartProvider, useCart } from './cart.js';
 import { naira } from '../lib/format.js';
+import logoUrl from '../assets/white.png';
 
 const TABS = [
   { to: '/', label: 'Home', end: true },
@@ -81,9 +82,9 @@ function Shell(): React.ReactElement {
       <ScrollToTop />
       <header className="top">
         <div className="top-inner">
-          <div className="brand">
-            Side A <em>Lagos</em>
-          </div>
+          <Link to="/" className="brand-logo" aria-label="Side A Lagos — home">
+            <img src={logoUrl} alt="Side A Lagos" height={28} />
+          </Link>
           <nav className="tabs" aria-label="Primary">
             {TABS.map((t) => (
               <Link key={t.to} to={t.to} aria-current={isActiveTab(t, pathname) ? 'page' : undefined}>

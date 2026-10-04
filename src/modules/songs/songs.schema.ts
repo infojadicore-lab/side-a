@@ -7,5 +7,4 @@ export const reactionSchema = z.object({
 
 export const commentSchema = z.object({
   text: z.string().min(1).max(500),
-  who: z.string().min(1).max(60).default('You'),
 });

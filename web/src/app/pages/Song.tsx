@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, fingerprint, get, post } from '../../lib/api.js';
 import type { BoardEntry, Song } from '../../lib/types.js';
 import { YouTubeLogo, isYouTubeUrl } from '../../lib/youtube.js';
-import { SignInButton, readToken, useSignedIn } from '../../components/SignInButton.js';
+import { SignInButton, displayNameFromToken, readToken, useSignedIn } from '../../components/SignInButton.js';
 
 type ReactionKind = 'repeat' | 'needed' | 'skip';
 
@@ -16,6 +16,13 @@ function SongRow({ song }: { song: Song }): React.ReactElement {
   const [comments, setComments] = useState(song.comments);
   const [formOpen, setFormOpen] = useState(false);
   const [draft, setDraft] = useState('');
+  const [needsCommentAuth, setNeedsCommentAuth] = useState(false);
+  const signedIn = useSignedIn();
+  const commentPromptRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (signedIn) setNeedsCommentAuth(false);
+  }, [signedIn]);
 
   const react = (kind: ReactionKind): void => {
     const wasActive = active[kind] ?? false;
@@ -37,16 +44,47 @@ function SongRow({ song }: { song: Song }): React.ReactElement {
   const submitComment = (): void => {
     const text = draft.trim();
     if (!text) return;
+    if (!readToken()) {
+      setNeedsCommentAuth(true);
+      requestAnimationFrame(() => commentPromptRef.current?.scrollIntoView({ block: 'nearest' }));
+      return;
+    }
+    setNeedsCommentAuth(false);
+    const localId = `local-${Date.now()}`;
     const optimistic = {
-      id: `local-${Date.now()}`,
+      id: localId,
       song_id: song.id,
-      who: 'You',
+      who: displayNameFromToken(readToken()) ?? 'You',
       text,
       created_at: new Date().toISOString(),
     };
     setComments((c) => [...c, optimistic]);
     setDraft('');
-    void post(`/api/songs/${song.id}/comments`, { text, who: 'You' }).catch(() => {});
+    void post<{ comment: { id: string; who: string } }>(
+      `/api/songs/${song.id}/comments`,
+      { text },
+      { auth: true },
+    )
+      .then((res) => {
+        if (!res.ok) {
+          if (res.status === 401) {
+            // Not signed in (or expired token) — keep the draft visible via prompt.
+            setComments((c) => c.filter((x) => x.id !== localId));
+            setDraft(text);
+            setNeedsCommentAuth(true);
+            requestAnimationFrame(() => commentPromptRef.current?.scrollIntoView({ block: 'nearest' }));
+            return;
+          }
+          throw new Error('comment failed');
+        }
+        // Replace the optimistic name with the server-attributed username.
+        const serverWho = res.body.comment.who;
+        setComments((c) => c.map((x) => (x.id === localId ? { ...x, id: res.body.comment.id, who: serverWho } : x)));
+      })
+      .catch(() => {
+        setComments((c) => c.filter((x) => x.id !== localId));
+        setDraft(text);
+      });
   };
 
   return (
@@ -92,6 +130,14 @@ function SongRow({ song }: { song: Song }): React.ReactElement {
               </p>
             ))}
           </div>
+          {!signedIn || needsCommentAuth ? (
+            <div ref={commentPromptRef} style={{ display: 'flex', gap: 12, alignItems: 'center', margin: '12px 0 4px', flexWrap: 'wrap' }}>
+              <p className="board-empty" style={{ padding: 0 }}>
+                {needsCommentAuth ? 'Sign in to comment — join the conversation.' : 'Sign in with Google to comment.'}
+              </p>
+              <SignInButton contextLabel="commenting" />
+            </div>
+          ) : null}
           <div className={`comment-form${formOpen ? ' open' : ''}`}>
             <input
               type="text"

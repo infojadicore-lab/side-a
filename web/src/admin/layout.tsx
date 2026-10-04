@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import { AUTH_EVENT, GoogleSignIn } from './GoogleSignIn.js';
+import logoUrl from '../assets/white.png';
 
 const TABS = [
   { to: '', label: 'Dashboard', end: true },
@@ -75,9 +76,9 @@ export function AdminShell(): React.ReactElement {
       <ScrollToTop />
       <header className="top">
         <div className="top-inner">
-          <div className="brand">
-            Side A <em>Admin</em>
-          </div>
+          <Link to={adminBase() || '/admin'} className="brand-logo" aria-label="Side A Admin — dashboard">
+            <img src={logoUrl} alt="Side A Admin" height={28} />
+          </Link>
           <nav className="tabs" id="admin-tabs" aria-label="Admin">
             {TABS.map((t) => (
               <Link key={t.label} to={t.to} aria-current={isActiveTab(t.to, t.end, pathname) ? 'page' : undefined}>

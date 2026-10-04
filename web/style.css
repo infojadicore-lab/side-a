@@ -54,6 +54,8 @@
   }
   .brand { font-family: 'Fraunces', serif; font-size: 19px; letter-spacing: 0.01em; }
   .brand em { font-style: italic; color: var(--gold); }
+  .brand-logo { display: inline-flex; align-items: center; flex-shrink: 0; border-radius: 6px; }
+  .brand-logo img { height: 28px; width: auto; display: block; }
   nav.tabs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
   nav.tabs::-webkit-scrollbar { display: none; }
   nav.tabs button,
@@ -65,7 +67,7 @@
   }
   nav.tabs button:hover, nav.tabs a:hover { color: var(--cream); }
   nav.tabs button[aria-current="page"], nav.tabs a[aria-current="page"] { color: var(--gold); }
-  .top-inner .brand { flex-shrink: 0; }
+  .top-inner .brand, .top-inner .brand-logo { flex-shrink: 0; }
   nav.tabs#admin-tabs { flex: 1 1 auto; min-width: 0; }
   .admin-auth { display: flex; gap: 8px; align-items: center; flex-shrink: 0; margin-left: 12px; }
   .admin-auth .pill, .admin-auth .btn { white-space: nowrap; }

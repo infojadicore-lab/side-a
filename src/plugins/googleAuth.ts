@@ -2,7 +2,7 @@ import type { FastifyRequest, FastifyReply } from 'fastify';
 import { OAuth2Client } from 'google-auth-library';
 import { config } from '../config.js';
 
-export type GoogleUser = { googleId: string; email?: string | undefined };
+export type GoogleUser = { googleId: string; email?: string | undefined; displayName?: string | undefined };
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -37,6 +37,16 @@ function extractToken(request: FastifyRequest): string | null {
   return typeof viaHeader === 'string' && viaHeader.length > 0 ? viaHeader : null;
 }
 
+function displayNameFromPayload(payload: Record<string, unknown>): string | undefined {
+  const given = typeof payload.given_name === 'string' ? payload.given_name.trim().split(' ')[0] : '';
+  if (given) return given;
+  const full = typeof payload.name === 'string' ? payload.name.trim().split(' ')[0] : '';
+  if (full) return full;
+  const email = typeof payload.email === 'string' ? payload.email.trim() : '';
+  if (email.includes('@')) return email.split('@')[0];
+  return undefined;
+}
+
 async function verifyGoogleToken(token: string): Promise<GoogleUser | null> {
   // Production path: cryptographic verification against Google certs.
   if (config.GOOGLE_CLIENT_ID) {
@@ -47,7 +57,11 @@ async function verifyGoogleToken(token: string): Promise<GoogleUser | null> {
       });
       const payload = ticket.getPayload();
       if (!payload?.sub) return null;
-      return { googleId: payload.sub, email: payload.email ?? undefined };
+      return {
+        googleId: payload.sub,
+        email: payload.email ?? undefined,
+        displayName: displayNameFromPayload(payload as unknown as Record<string, unknown>),
+      };
     } catch {
       return null;
     }
@@ -55,7 +69,11 @@ async function verifyGoogleToken(token: string): Promise<GoogleUser | null> {
   // Dev fallback (GOOGLE_CLIENT_ID unset): unverified decode, else raw token id.
   const payload = decodeJwtPayload(token);
   if (payload && typeof payload.sub === 'string') {
-    return { googleId: payload.sub, email: payload.email as string | undefined };
+    return {
+      googleId: payload.sub,
+      email: payload.email as string | undefined,
+      displayName: displayNameFromPayload(payload),
+    };
   }
   return { googleId: token };
 }
