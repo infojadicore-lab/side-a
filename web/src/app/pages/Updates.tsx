@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router';
 import { get } from '../../lib/api.js';
 import type { UpdateItem } from '../../lib/types.js';
 import { shortDate } from '../../lib/format.js';
-import { YouTubeLogo, isYouTubeUrl } from '../../lib/youtube.js';
+import { useYouTubePlayer } from '../../lib/youtube.js';
 
 const SOURCES: [string, string][] = [
   ['', 'All'],
@@ -12,6 +12,35 @@ const SOURCES: [string, string][] = [
   ['youtube', 'YouTube'],
   ['twitter_spaces', 'Spaces'],
 ];
+
+function UpdateRow({ u }: { u: UpdateItem }): React.ReactElement {
+  const yt = useYouTubePlayer(u.source_url);
+  return (
+    <div className="update-row">
+      <div className="update-date">{shortDate(u.date)}</div>
+      <div className="update-body">
+        <p className="title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {u.title}
+          {u.source && u.source !== 'side_a' ? (
+            <a className="source-badge" href={u.source_url ?? '#'} target="_blank" rel="noopener noreferrer">
+              {u.source}
+            </a>
+          ) : null}
+          {yt.toggle}
+        </p>
+        <p className="desc">{u.description}</p>
+        {yt.embed}
+        {u.source_url ? (
+          <p style={{ marginTop: 6 }}>
+            <a href={u.source_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13 }}>
+              View source →
+            </a>
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
 
 export function UpdatesPage(): React.ReactElement {
   const [params, setParams] = useSearchParams();
@@ -53,30 +82,7 @@ export function UpdatesPage(): React.ReactElement {
         ) : updates.length === 0 ? (
           <p className="board-empty">No updates yet.</p>
         ) : (
-          updates.map((u) => (
-            <div key={u.id} className="update-row">
-              <div className="update-date">{shortDate(u.date)}</div>
-              <div className="update-body">
-                <p className="title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {u.title}
-                  {u.source && u.source !== 'side_a' ? (
-                    <a className="source-badge" href={u.source_url ?? '#'} target="_blank" rel="noopener noreferrer">
-                      {u.source}
-                    </a>
-                  ) : null}
-                  {u.source_url && isYouTubeUrl(u.source_url) ? <YouTubeLogo url={u.source_url} /> : null}
-                </p>
-                <p className="desc">{u.description}</p>
-                {u.source_url ? (
-                  <p style={{ marginTop: 6 }}>
-                    <a href={u.source_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13 }}>
-                      View source →
-                    </a>
-                  </p>
-                ) : null}
-              </div>
-            </div>
-          ))
+          updates.map((u) => <UpdateRow key={u.id} u={u} />)
         )}
       </div>
     </section>

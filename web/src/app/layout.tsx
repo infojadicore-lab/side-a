@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Link, Outlet, useLocation } from 'react-router';
 import { CartProvider, useCart } from './cart.js';
 import { naira } from '../lib/format.js';
+import { Spinner } from '../components/Spinner.js';
 import logoUrl from '../assets/white.png';
 
 const TABS = [
@@ -60,6 +61,7 @@ function CartBar(): React.ReactElement | null {
       <button
         className="btn primary"
         disabled={placing}
+        aria-busy={placing}
         onClick={() => {
           void placeOrder().then(({ monnifyLink }) => {
             if (!monnifyLink) {
@@ -69,7 +71,7 @@ function CartBar(): React.ReactElement | null {
           });
         }}
       >
-        {placing ? 'Redirecting…' : 'Place order'}
+        {placing ? <Spinner /> : null} {placing ? 'Redirecting…' : 'Place order'}
       </button>
     </div>
   );

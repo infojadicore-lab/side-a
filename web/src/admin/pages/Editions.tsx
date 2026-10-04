@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { api } from '../../lib/api.js';
 import type { Edition, EditionsPage } from '../../lib/types.js';
+import { Spinner, useBusyKey } from '../../components/Spinner.js';
 
 const LIMIT = 5;
 
@@ -53,6 +54,8 @@ export function EditionsManager(): React.ReactElement {
   const [editId, setEditId] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
   const [syncVals, setSyncVals] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [busyKey, runBusy] = useBusyKey();
 
   const load = useCallback((p: number) => {
     void api<EditionsPage>(`/api/editions?page=${p}&limit=${LIMIT}`).then((res) => {
@@ -75,6 +78,7 @@ export function EditionsManager(): React.ReactElement {
 
   const submit = (e: React.FormEvent): void => {
     e.preventDefault();
+    if (saving) return;
     let meta: Record<string, unknown> | null = null;
     if (form.meta.trim()) {
       try {
@@ -105,31 +109,36 @@ export function EditionsManager(): React.ReactElement {
     }
     const url = editId ? `/api/admin/editions/${editId}` : '/api/admin/editions';
     const method = editId ? 'PATCH' : 'POST';
-    void api<{ edition?: Edition }>(url, { method, body: JSON.stringify(payload) }).then((res) => {
-      if (!res.ok) {
-        const b = res.body as { issues?: { message?: string }[]; error?: string };
-        setMsg(b.issues?.[0]?.message ?? b.error ?? JSON.stringify(res.body));
-        return;
-      }
-      if (editId) {
-        setMsg('Updated');
-        setEditId(null);
-        setForm(EMPTY_FORM);
-        load(page);
-      } else {
-        setMsg('Created — idx auto-assigned');
-        setForm(EMPTY_FORM);
-        const newIdx = res.body.edition?.idx;
-        if (newIdx) {
-          const target = Math.min(Math.ceil(newIdx / LIMIT), Math.ceil((total + 1) / LIMIT) || 1);
-          if (target !== page) {
-            setParams(target === 1 ? {} : { page: String(target) });
-            return;
-          }
+    setSaving(true);
+    void api<{ edition?: Edition }>(url, { method, body: JSON.stringify(payload) })
+      .then((res) => {
+        if (!res.ok) {
+          const b = res.body as { issues?: { message?: string }[]; error?: string };
+          setMsg(b.issues?.[0]?.message ?? b.error ?? JSON.stringify(res.body));
+          return;
         }
-        load(page);
-      }
-    });
+        if (editId) {
+          setMsg('Updated');
+          setEditId(null);
+          setForm(EMPTY_FORM);
+          load(page);
+        } else {
+          setMsg('Created — idx auto-assigned');
+          setForm(EMPTY_FORM);
+          const newIdx = res.body.edition?.idx;
+          if (newIdx) {
+            const target = Math.min(Math.ceil(newIdx / LIMIT), Math.ceil((total + 1) / LIMIT) || 1);
+            if (target !== page) {
+              setParams(target === 1 ? {} : { page: String(target) });
+              return;
+            }
+          }
+          load(page);
+        }
+      })
+      .finally(() => {
+        setSaving(false);
+      });
   };
 
   const startEdit = (ed: Edition): void => {
@@ -284,8 +293,8 @@ export function EditionsManager(): React.ReactElement {
               placeholder='{"streamUrl":"https://..."}'
             />
           </div>
-          <button type="submit" className="btn primary">
-            {editId ? 'Update edition' : 'Create edition'}
+          <button type="submit" className="btn primary" disabled={saving} aria-busy={saving}>
+            {saving ? <Spinner /> : null} {editId ? 'Update edition' : 'Create edition'}
           </button>
           {editId ? (
             <button
@@ -362,13 +371,18 @@ export function EditionsManager(): React.ReactElement {
                         onClick={() => {
                           const v = parseInt(syncVals[e.id] ?? '', 10);
                           if (isNaN(v)) return;
-                          void api(`/api/admin/sync/editions/${e.id}`, {
-                            method: 'POST',
-                            body: JSON.stringify({ spotsSold: v }),
-                          }).then(() => load(page));
+                          runBusy(
+                            `sync-${e.id}`,
+                            api(`/api/admin/sync/editions/${e.id}`, {
+                              method: 'POST',
+                              body: JSON.stringify({ spotsSold: v }),
+                            }).then(() => load(page)),
+                          );
                         }}
+                        disabled={busyKey === `sync-${e.id}`}
+                        aria-busy={busyKey === `sync-${e.id}`}
                       >
-                        Sync spots
+                        {busyKey === `sync-${e.id}` ? <Spinner /> : null} Sync spots
                       </button>
                       <button type="button" className="btn small" onClick={() => startEdit(e)}>
                         Edit

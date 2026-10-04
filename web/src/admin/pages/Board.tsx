@@ -1,11 +1,36 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../lib/api.js';
 import type { BoardEntry, Song } from '../../lib/types.js';
-import { YouTubeLogo, isYouTubeUrl } from '../../lib/youtube.js';
+import { useYouTubePlayer } from '../../lib/youtube.js';
+import { Spinner, useBusyKey } from '../../components/Spinner.js';
+
+function ArchiveRow({ s }: { s: Song }): React.ReactElement {
+  const yt = useYouTubePlayer(s.youtube_url);
+  return (
+    <div className="board-row">
+      <div className="board-rank">
+        W{s.week_number}
+        {s.is_current ? ' ★' : ''}
+      </div>
+      <div className="board-main">
+        <p className="board-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span>
+            {s.title} — {s.artist}
+          </span>
+          {yt.toggle}
+        </p>
+        <p className="board-meta">Picked by {s.picked_by}</p>
+        <p className="board-note">{s.note}</p>
+        {yt.embed}
+      </div>
+    </div>
+  );
+}
 
 export function BoardManager(): React.ReactElement {
   const [board, setBoard] = useState<BoardEntry[] | null>(null);
   const [songs, setSongs] = useState<Song[] | null>(null);
+  const [busyKey, runBusy] = useBusyKey();
 
   const load = useCallback(() => {
     void api<{ board: BoardEntry[] }>('/api/admin/board').then((res) => setBoard(res.body?.board ?? []));
@@ -18,13 +43,16 @@ export function BoardManager(): React.ReactElement {
 
   const pick = (id: string): void => {
     if (!confirm('Pick this entry? This closes the week — all other queued will be archived.')) return;
-    void api('/api/admin/board/pick', { method: 'POST', body: JSON.stringify({ id }) }).then((res) => {
-      if (!res.ok) {
-        alert((res.body as { error?: string }).error ?? 'Pick failed');
-        return;
-      }
-      load();
-    });
+    runBusy(
+      `pick-${id}`,
+      api('/api/admin/board/pick', { method: 'POST', body: JSON.stringify({ id }) }).then((res) => {
+        if (!res.ok) {
+          alert((res.body as { error?: string }).error ?? 'Pick failed');
+          return;
+        }
+        load();
+      }),
+    );
   };
 
   return (
@@ -51,8 +79,14 @@ export function BoardManager(): React.ReactElement {
                 </p>
                 <p className="board-note">{e.why}</p>
                 <div className="board-votes">
-                  <button type="button" className="btn primary small" onClick={() => pick(e.id)}>
-                    Pick as Song of the Week
+                  <button
+                    type="button"
+                    className="btn primary small"
+                    onClick={() => pick(e.id)}
+                    disabled={busyKey === `pick-${e.id}`}
+                    aria-busy={busyKey === `pick-${e.id}`}
+                  >
+                    {busyKey === `pick-${e.id}` ? <Spinner /> : null} Pick as Song of the Week
                   </button>
                 </div>
               </div>
@@ -68,24 +102,7 @@ export function BoardManager(): React.ReactElement {
           ) : songs.length === 0 ? (
             <p className="board-empty">No winners yet</p>
           ) : (
-            songs.map((s) => (
-              <div key={s.id} className="board-row">
-                <div className="board-rank">
-                  W{s.week_number}
-                  {s.is_current ? ' ★' : ''}
-                </div>
-                <div className="board-main">
-                  <p className="board-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span>
-                      {s.title} — {s.artist}
-                    </span>
-                    {s.youtube_url && isYouTubeUrl(s.youtube_url) ? <YouTubeLogo url={s.youtube_url} /> : null}
-                  </p>
-                  <p className="board-meta">Picked by {s.picked_by}</p>
-                  <p className="board-note">{s.note}</p>
-                </div>
-              </div>
-            ))
+            songs.map((s) => <ArchiveRow key={s.id} s={s} />)
           )}
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Spinner } from './Spinner.js';
 
 export const AUTH_EVENT = 'side-a-auth';
 export const TOKEN_KEY = 'side-a-google-id-token';
@@ -134,6 +135,10 @@ function initGis(clientId: string): void {
 // GIS init shared across every SignInButton instance on the page.
 let gisInitPromise: Promise<void> | null = null;
 
+function resetGis(): void {
+  gisInitPromise = null;
+}
+
 function ensureGis(clientId: string): Promise<void> {
   if (window.google?.accounts?.id) {
     initGis(clientId);
@@ -158,8 +163,29 @@ export function SignInButton({ contextLabel = 'sign-in' }: { contextLabel?: stri
   const [failed, setFailed] = useState(false);
   const [gisLoaded, setGisLoaded] = useState(false);
   const [useFallback, setUseFallback] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(() => displayNameFromToken(readToken()));
   const btnRef = useRef<HTMLDivElement>(null);
+  const busyTimer = useRef<number | null>(null);
+
+  const stopBusy = useCallback(() => {
+    if (busyTimer.current !== null) {
+      window.clearTimeout(busyTimer.current);
+      busyTimer.current = null;
+    }
+    setBusy(false);
+  }, []);
+
+  // Safety net: the moment callback should always fire, but if it never
+  // does the button must not spin forever.
+  const armBusyTimeout = useCallback(() => {
+    if (busyTimer.current !== null) window.clearTimeout(busyTimer.current);
+    busyTimer.current = window.setTimeout(() => {
+      busyTimer.current = null;
+      setBusy(false);
+      setUseFallback(true);
+    }, 10000);
+  }, []);
 
   useEffect(() => {
     const syncName = (): void => setDisplayName(displayNameFromToken(readToken()));
@@ -198,28 +224,69 @@ export function SignInButton({ contextLabel = 'sign-in' }: { contextLabel?: stri
       } catch {
         /* not initialized */
       }
+      if (busyTimer.current !== null) {
+        window.clearTimeout(busyTimer.current);
+        busyTimer.current = null;
+      }
     },
     [],
   );
 
+  // A stored credential means sign-in completed — stop spinning anywhere.
+  useEffect(() => {
+    if (signedIn) stopBusy();
+  }, [signedIn, stopBusy]);
+
   const startSignIn = (): void => {
+    if (busy) return;
     if (!window.google?.accounts?.id) {
       // GIS not loaded yet — try once more, else show the failure pill.
       if (!clientId) return;
+      setBusy(true);
       void ensureGis(clientId)
-        .then(() => setGisLoaded(true))
-        .catch(() => setFailed(true));
+        .then(() => {
+          setGisLoaded(true);
+          stopBusy();
+        })
+        .catch(() => {
+          stopBusy();
+          setFailed(true);
+        });
       return;
     }
+    setBusy(true);
+    armBusyTimeout();
     try {
       window.google.accounts.id.prompt((moment) => {
         // One Tap couldn't or wouldn't show (no session, dismissed,
         // FedCM opt-out) — offer Google's own button instead.
-        if (moment.isSkippedMoment() || moment.isDismissedMoment()) setUseFallback(true);
+        if (moment.isSkippedMoment() || moment.isDismissedMoment()) {
+          stopBusy();
+          setUseFallback(true);
+        }
       });
     } catch {
+      stopBusy();
       setUseFallback(true);
     }
+  };
+
+  const retryLoad = (): void => {
+    // Tracker blockers (Brave Shields etc.) kill the GIS script; once the
+    // user allows it, retry from scratch without a reload.
+    resetGis();
+    setFailed(false);
+    setUseFallback(false);
+    setBusy(true);
+    void ensureGis(clientId)
+      .then(() => {
+        setGisLoaded(true);
+        stopBusy();
+      })
+      .catch(() => {
+        stopBusy();
+        setFailed(true);
+      });
   };
 
   const signOut = useCallback(() => {
@@ -244,6 +311,9 @@ export function SignInButton({ contextLabel = 'sign-in' }: { contextLabel?: stri
       <span className="pill pill-with-icon">
         <GoogleGIcon />
         Google sign-in failed to load
+        <button type="button" className="btn small" onClick={retryLoad} style={{ marginLeft: 4 }}>
+          Try again
+        </button>
       </span>
     );
   }
@@ -266,9 +336,9 @@ export function SignInButton({ contextLabel = 'sign-in' }: { contextLabel?: stri
     );
   }
   return (
-    <button type="button" className="google-btn" onClick={startSignIn}>
-      <GoogleGIcon />
-      Continue with Google
+    <button type="button" className="google-btn" onClick={startSignIn} disabled={busy} aria-busy={busy}>
+      {busy ? <Spinner /> : <GoogleGIcon />}
+      {busy ? 'Waiting for Google…' : 'Continue with Google'}
     </button>
   );
 }

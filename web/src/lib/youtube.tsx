@@ -25,39 +25,73 @@ export function youtubeEmbedUrl(url: string): string | null {
   return id ? `https://www.youtube.com/embed/${id}?rel=0` : null;
 }
 
-export function YouTubeLogo({ url }: { url: string }): React.ReactElement | null {
-  const [open, setOpen] = useState(false);
-  const id = parseYouTubeId(url);
-  if (!id) return null;
+export function YouTubeToggle({
+  url,
+  open,
+  onToggle,
+}: {
+  url: string;
+  open: boolean;
+  onToggle: () => void;
+}): React.ReactElement | null {
+  if (!parseYouTubeId(url)) return null;
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="yt-logo"
+      aria-label={open ? 'Close YouTube player' : 'Watch on YouTube'}
+      aria-expanded={open}
+      title="Watch on YouTube"
+      onClick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+        e.preventDefault();
+        onToggle();
+      }}
+    >
+      <svg viewBox="0 0 24 16" aria-hidden="true">
+        <path
+          fill="currentColor"
+          d="M23.5 2.2a3 3 0 0 0-2.1-2.1C19.6 0 12 0 12 0S4.4 0 2.6.1A3 3 0 0 0 .5 2.2 31 31 0 0 0 0 8a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1C4.4 16 12 16 12 16s7.6 0 9.4-.1a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 8a31 31 0 0 0-.5-5.8z"
+        />
+        <path fill="#fff" d="M9.8 11.5L15.6 8 9.8 4.5z" />
+      </svg>
+    </a>
+  );
+}
+
+export function YouTubeEmbed({ url, open }: { url: string; open: boolean }): React.ReactElement | null {
   const embed = youtubeEmbedUrl(url);
+  if (!open || !embed) return null;
+  return (
+    <div className="yt-embed open">
+      <iframe src={embed} title="YouTube player" allow="accelerometer; encrypted-media" loading="lazy" allowFullScreen />
+    </div>
+  );
+}
+
+// Split toggle + player so call sites can keep the badge inline in the
+// title row while the player renders as a full-width block below the
+// description (a fragment inside the flex title squeezes the player).
+export function useYouTubePlayer(url: string | null | undefined): {
+  toggle: React.ReactElement | null;
+  embed: React.ReactElement | null;
+} {
+  const [open, setOpen] = useState(false);
+  if (!url || !isYouTubeUrl(url)) return { toggle: null, embed: null };
+  const toggle = <YouTubeToggle url={url} open={open} onToggle={() => setOpen((v) => !v)} />;
+  const embed = <YouTubeEmbed url={url} open={open} />;
+  return { toggle, embed };
+}
+
+export function YouTubeLogo({ url }: { url: string }): React.ReactElement | null {
+  const { toggle, embed } = useYouTubePlayer(url);
+  if (!toggle) return null;
   return (
     <>
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="yt-logo"
-        aria-label="Watch on YouTube"
-        title="Watch on YouTube"
-        onClick={(e) => {
-          if (e.metaKey || e.ctrlKey || e.shiftKey) return;
-          e.preventDefault();
-          setOpen((v) => !v);
-        }}
-      >
-        <svg viewBox="0 0 24 16" aria-hidden="true">
-          <path
-            fill="currentColor"
-            d="M23.5 2.2a3 3 0 0 0-2.1-2.1C19.6 0 12 0 12 0S4.4 0 2.6.1A3 3 0 0 0 .5 2.2 31 31 0 0 0 0 8a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1C4.4 16 12 16 12 16s7.6 0 9.4-.1a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 8a31 31 0 0 0-.5-5.8z"
-          />
-          <path fill="#fff" d="M9.8 11.5L15.6 8 9.8 4.5z" />
-        </svg>
-      </a>
-      {open && embed ? (
-        <div className="yt-embed open">
-          <iframe src={embed} title="YouTube player" allow="accelerometer; encrypted-media" loading="lazy" allowFullScreen />
-        </div>
-      ) : null}
+      {toggle}
+      {embed}
     </>
   );
 }

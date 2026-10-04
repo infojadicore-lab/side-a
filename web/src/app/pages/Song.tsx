@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, fingerprint, get, post } from '../../lib/api.js';
 import type { BoardEntry, Song } from '../../lib/types.js';
-import { YouTubeLogo, isYouTubeUrl } from '../../lib/youtube.js';
+import { useYouTubePlayer } from '../../lib/youtube.js';
 import { SignInButton, displayNameFromToken, readToken, useSignedIn } from '../../components/SignInButton.js';
+import { Spinner } from '../../components/Spinner.js';
 
 type ReactionKind = 'repeat' | 'needed' | 'skip';
 
@@ -36,9 +37,11 @@ function SongRow({ song }: { song: Song }): React.ReactElement {
   const [comments, setComments] = useState(song.comments);
   const [formOpen, setFormOpen] = useState(false);
   const [draft, setDraft] = useState('');
+  const [commenting, setCommenting] = useState(false);
   const [needsCommentAuth, setNeedsCommentAuth] = useState(false);
   const signedIn = useSignedIn();
   const commentPromptRef = useRef<HTMLDivElement>(null);
+  const yt = useYouTubePlayer(song.youtube_url);
 
   useEffect(() => {
     if (signedIn) setNeedsCommentAuth(false);
@@ -48,14 +51,22 @@ function SongRow({ song }: { song: Song }): React.ReactElement {
     const wasActive = active[kind] ?? false;
     setActive((p) => ({ ...p, [kind]: !wasActive }));
     setCounts((c) => ({ ...c, [kind]: c[kind] + (wasActive ? -1 : 1) }));
-    // Single persist call (backend toggles by fingerprint) — fire and forget.
+    // Single persist call (backend toggles by fingerprint) — revert the
+    // optimistic update if it fails so the count never lies.
     try {
       const fp = fingerprint();
       void fetch(`/api/songs/${song.id}/reactions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-fingerprint': fp },
         body: JSON.stringify({ kind }),
-      }).catch(() => {});
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error('reaction failed');
+        })
+        .catch(() => {
+          setActive((p) => ({ ...p, [kind]: wasActive }));
+          setCounts((c) => ({ ...c, [kind]: c[kind] + (wasActive ? 1 : -1) }));
+        });
     } catch {
       /* offline */
     }
@@ -63,13 +74,14 @@ function SongRow({ song }: { song: Song }): React.ReactElement {
 
   const submitComment = (): void => {
     const text = draft.trim();
-    if (!text) return;
+    if (!text || commenting) return;
     if (!readToken()) {
       setNeedsCommentAuth(true);
       requestAnimationFrame(() => commentPromptRef.current?.scrollIntoView({ block: 'nearest' }));
       return;
     }
     setNeedsCommentAuth(false);
+    setCommenting(true);
     const localId = `local-${Date.now()}`;
     const optimistic = {
       id: localId,
@@ -104,6 +116,9 @@ function SongRow({ song }: { song: Song }): React.ReactElement {
       .catch(() => {
         setComments((c) => c.filter((x) => x.id !== localId));
         setDraft(text);
+      })
+      .finally(() => {
+        setCommenting(false);
       });
   };
 
@@ -114,12 +129,13 @@ function SongRow({ song }: { song: Song }): React.ReactElement {
         {song.is_current ? <span className="now-badge">Now playing</span> : null}
         <p className="title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {song.title}
-          {song.youtube_url && isYouTubeUrl(song.youtube_url) ? <YouTubeLogo url={song.youtube_url} /> : null}
+          {yt.toggle}
         </p>
         <p className="by">
           {song.artist} · picked by {song.picked_by}
         </p>
         <p className="note">{song.note}</p>
+        {yt.embed}
         <div className="reactions">
           {(
             [
@@ -163,6 +179,7 @@ function SongRow({ song }: { song: Song }): React.ReactElement {
               type="text"
               placeholder="Add a comment"
               value={draft}
+              disabled={commenting}
               onChange={(e) => setDraft(e.target.value)}
               onFocus={() => {
                 // First real attempt at commenting — ask for sign-in here only.
@@ -175,8 +192,8 @@ function SongRow({ song }: { song: Song }): React.ReactElement {
                 if (e.key === 'Enter') submitComment();
               }}
             />
-            <button type="button" className="btn small" onClick={submitComment}>
-              Post
+            <button type="button" className="btn small" onClick={submitComment} disabled={commenting} aria-busy={commenting}>
+              {commenting ? <Spinner /> : null} Post
             </button>
           </div>
         </div>
@@ -191,6 +208,7 @@ export function SongPage(): React.ReactElement {
   // The single board entry the user tried to vote on while signed out.
   // The prompt renders under that entry's vote buttons — nowhere else.
   const [authEntryId, setAuthEntryId] = useState<string | null>(null);
+  const [voting, setVoting] = useState<{ id: string; direction: 'up' | 'down' } | null>(null);
   const signedIn = useSignedIn();
   const votePromptRefs = useRef(new Map<string, HTMLDivElement>());
 
@@ -224,17 +242,20 @@ export function SongPage(): React.ReactElement {
   };
 
   const vote = (id: string, direction: 'up' | 'down'): void => {
+    if (voting) return;
     if (!readToken()) {
       setAuthEntryId(id);
       scrollToVotePrompt(id);
       return;
     }
     setAuthEntryId(null);
+    setVoting({ id, direction });
     void api(`/api/board/${id}/vote`, {
       method: 'POST',
       body: JSON.stringify({ direction }),
       auth: true,
     }).then((res) => {
+      setVoting(null);
       if (!res.ok) {
         if (res.status === 401) {
           // Expired or invalid token — prompt a fresh sign-in, no dead-end alert.
@@ -284,11 +305,25 @@ export function SongPage(): React.ReactElement {
                 </p>
                 <p className="board-note">{e.why}</p>
                 <div className="board-votes">
-                  <button type="button" className="vote-btn" onClick={() => vote(e.id, 'up')}>
-                    <VoteUpIcon /> Upvote ({e.upvotes})
+                  <button
+                    type="button"
+                    className="vote-btn"
+                    onClick={() => vote(e.id, 'up')}
+                    disabled={voting?.id === e.id}
+                    aria-busy={voting?.id === e.id && voting.direction === 'up'}
+                  >
+                    {voting?.id === e.id && voting.direction === 'up' ? <Spinner /> : <VoteUpIcon />} Upvote (
+                    {e.upvotes})
                   </button>
-                  <button type="button" className="vote-btn" onClick={() => vote(e.id, 'down')}>
-                    <VoteDownIcon /> Downvote ({e.downvotes})
+                  <button
+                    type="button"
+                    className="vote-btn"
+                    onClick={() => vote(e.id, 'down')}
+                    disabled={voting?.id === e.id}
+                    aria-busy={voting?.id === e.id && voting.direction === 'down'}
+                  >
+                    {voting?.id === e.id && voting.direction === 'down' ? <Spinner /> : <VoteDownIcon />} Downvote (
+                    {e.downvotes})
                   </button>
                 </div>
                 {authEntryId === e.id ? (

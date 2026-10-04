@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router';
 import { api } from '../../lib/api.js';
 import type { UpdateItem } from '../../lib/types.js';
 import { shortDate } from '../../lib/format.js';
+import { Spinner, useBusyKey } from '../../components/Spinner.js';
 
 const SOURCES = ['', 'side_a', 'instagram', 'youtube', 'twitter_spaces'];
 const SOURCE_LABELS: Record<string, string> = {
@@ -31,6 +32,8 @@ export function UpdatesManager(): React.ReactElement {
   const [form, setForm] = useState<UpdateForm>(EMPTY_FORM);
   const [editId, setEditId] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [busyKey, runBusy] = useBusyKey();
 
   const load = useCallback((src: string) => {
     const url = src ? `/api/updates?source=${encodeURIComponent(src)}` : '/api/updates';
@@ -46,6 +49,7 @@ export function UpdatesManager(): React.ReactElement {
 
   const submit = (e: React.FormEvent): void => {
     e.preventDefault();
+    if (saving) return;
     let meta: Record<string, unknown> | null = null;
     if (form.meta.trim()) {
       try {
@@ -69,16 +73,21 @@ export function UpdatesManager(): React.ReactElement {
     }
     const url = editId ? `/api/admin/updates/${editId}` : '/api/admin/updates';
     const method = editId ? 'PATCH' : 'POST';
-    void api(url, { method, body: JSON.stringify(payload) }).then((res) => {
-      if (!res.ok) {
-        setMsg((res.body as { error?: string }).error ?? JSON.stringify(res.body));
-        return;
-      }
-      setForm(EMPTY_FORM);
-      setEditId(null);
-      setMsg(editId ? 'Updated' : 'Created');
-      load(sourceFilter);
-    });
+    setSaving(true);
+    void api(url, { method, body: JSON.stringify(payload) })
+      .then((res) => {
+        if (!res.ok) {
+          setMsg((res.body as { error?: string }).error ?? JSON.stringify(res.body));
+          return;
+        }
+        setForm(EMPTY_FORM);
+        setEditId(null);
+        setMsg(editId ? 'Updated' : 'Created');
+        load(sourceFilter);
+      })
+      .finally(() => {
+        setSaving(false);
+      });
   };
 
   return (
@@ -139,8 +148,8 @@ export function UpdatesManager(): React.ReactElement {
             <textarea id="up-meta" value={form.meta} onChange={(e) => set('meta', e.target.value)} placeholder="{}" />
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button type="submit" className="btn primary">
-              {editId ? 'Update' : 'Create update'}
+            <button type="submit" className="btn primary" disabled={saving} aria-busy={saving}>
+              {saving ? <Spinner /> : null} {editId ? 'Update' : 'Create update'}
             </button>
             {editId ? (
               <button
@@ -217,12 +226,17 @@ export function UpdatesManager(): React.ReactElement {
                     className="btn small"
                     onClick={() => {
                       if (!confirm('Delete this update?')) return;
-                      void api(`/api/admin/updates/${u.id}`, { method: 'DELETE' }).then(() =>
-                        load(sourceFilter),
+                      runBusy(
+                        `del-${u.id}`,
+                        api(`/api/admin/updates/${u.id}`, { method: 'DELETE' }).then(() =>
+                          load(sourceFilter),
+                        ),
                       );
                     }}
+                    disabled={busyKey === `del-${u.id}`}
+                    aria-busy={busyKey === `del-${u.id}`}
                   >
-                    Delete
+                    {busyKey === `del-${u.id}` ? <Spinner /> : null} Delete
                   </button>
                 </div>
               </div>

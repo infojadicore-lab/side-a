@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { api } from '../../lib/api.js';
+import { Spinner } from '../../components/Spinner.js';
 
 export function WebhooksTester(): React.ReactElement {
   const [tixId, setTixId] = useState('side-a-04');
   const [tixQty, setTixQty] = useState('1');
   const [tixMsg, setTixMsg] = useState('');
+  const [tixBusy, setTixBusy] = useState(false);
   const [ref, setRef] = useState('');
   const [paid, setPaid] = useState('true');
   const [monnifyMsg, setMonnifyMsg] = useState('');
+  const [monnifyBusy, setMonnifyBusy] = useState(false);
 
   return (
     <section className="screen active">
@@ -24,10 +27,14 @@ export function WebhooksTester(): React.ReactElement {
             style={{ maxWidth: '100%' }}
             onSubmit={(e) => {
               e.preventDefault();
+              if (tixBusy) return;
+              setTixBusy(true);
               void api('/api/webhooks/tix-africa', {
                 method: 'POST',
                 body: JSON.stringify({ eventId: tixId.trim(), quantity: parseInt(tixQty, 10) || 1 }),
-              }).then((res) => setTixMsg(JSON.stringify(res.body)));
+              })
+                .then((res) => setTixMsg(JSON.stringify(res.body)))
+                .finally(() => setTixBusy(false));
             }}
           >
             <div className="field">
@@ -38,8 +45,8 @@ export function WebhooksTester(): React.ReactElement {
               <label>Quantity</label>
               <input type="number" value={tixQty} onChange={(e) => setTixQty(e.target.value)} />
             </div>
-            <button type="submit" className="btn primary small">
-              Fire POST /api/webhooks/tix-africa
+            <button type="submit" className="btn primary small" disabled={tixBusy} aria-busy={tixBusy}>
+              {tixBusy ? <Spinner /> : null} Fire POST /api/webhooks/tix-africa
             </button>
             <p style={{ fontSize: 13, color: 'var(--gold)', marginTop: 8 }}>{tixMsg}</p>
           </form>
@@ -51,10 +58,14 @@ export function WebhooksTester(): React.ReactElement {
             style={{ maxWidth: '100%' }}
             onSubmit={(e) => {
               e.preventDefault();
+              if (monnifyBusy) return;
+              setMonnifyBusy(true);
               void api('/api/webhooks/monnify', {
                 method: 'POST',
                 body: JSON.stringify({ reference: ref.trim(), paid: paid === 'true' }),
-              }).then((res) => setMonnifyMsg(JSON.stringify(res.body)));
+              })
+                .then((res) => setMonnifyMsg(JSON.stringify(res.body)))
+                .finally(() => setMonnifyBusy(false));
             }}
           >
             <div className="field">
@@ -68,8 +79,8 @@ export function WebhooksTester(): React.ReactElement {
                 <option value="false">false</option>
               </select>
             </div>
-            <button type="submit" className="btn primary small">
-              Fire POST /api/webhooks/monnify
+            <button type="submit" className="btn primary small" disabled={monnifyBusy} aria-busy={monnifyBusy}>
+              {monnifyBusy ? <Spinner /> : null} Fire POST /api/webhooks/monnify
             </button>
             <p style={{ fontSize: 13, color: 'var(--gold)', marginTop: 8 }}>{monnifyMsg}</p>
           </form>

@@ -280,6 +280,19 @@
   }
   .google-btn:hover { background: #f6fafe; }
   .google-btn .g-icon { width: 18px; height: 18px; }
+  .spinner {
+    width: 1em; height: 1em; flex-shrink: 0;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    animation: side-a-spin 0.7s linear infinite;
+  }
+  @keyframes side-a-spin {
+    to { transform: rotate(360deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .spinner { animation: none; border-top-color: currentColor; opacity: 0.6; }
+  }
   .vote-btn:hover { border-color: var(--gold-dim); }
   .vote-btn.active { background: var(--gold); border-color: var(--gold); color: var(--plum-950); font-weight: 500; }
   .board-empty { color: var(--muted); font-size: 14px; padding: 18px 0; }

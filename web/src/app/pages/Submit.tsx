@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { post } from '../../lib/api.js';
+import { Spinner } from '../../components/Spinner.js';
 
 export function SubmitPage(): React.ReactElement {
   const [name, setName] = useState('');
@@ -8,11 +9,13 @@ export function SubmitPage(): React.ReactElement {
   const [link, setLink] = useState('');
   const [touched, setTouched] = useState(false);
   const [done, setDone] = useState(false);
+  const [sending, setSending] = useState(false);
 
   const submit = (e: React.FormEvent): void => {
     e.preventDefault();
     setTouched(true);
-    if (!name.trim() || !track.trim() || !why.trim()) return;
+    if (!name.trim() || !track.trim() || !why.trim() || sending) return;
+    setSending(true);
     void post('/api/recommendations', {
       name: name.trim(),
       track: track.trim(),
@@ -20,7 +23,8 @@ export function SubmitPage(): React.ReactElement {
       link: link.trim(),
     })
       .then(() => setDone(true))
-      .catch(() => setDone(true));
+      .catch(() => setDone(true))
+      .finally(() => setSending(false));
   };
 
   if (done) {
@@ -89,8 +93,8 @@ export function SubmitPage(): React.ReactElement {
           />
           <p className="hint">Helps us queue it up quickly if it&apos;s picked.</p>
         </div>
-        <button type="submit" className="btn primary full">
-          Submit recommendation
+        <button type="submit" className="btn primary full" disabled={sending} aria-busy={sending}>
+          {sending ? <Spinner /> : null} {sending ? 'Sending…' : 'Submit recommendation'}
         </button>
       </form>
     </section>

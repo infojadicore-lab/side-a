@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../lib/api.js';
 import type { MerchItem, MerchOrder } from '../../lib/types.js';
 import { shortDate } from '../../lib/format.js';
+import { Spinner, useBusyKey } from '../../components/Spinner.js';
 
 interface MerchForm {
   sku: string;
@@ -35,6 +36,8 @@ export function MerchManager(): React.ReactElement {
   const [msg, setMsg] = useState('');
   const [syncVals, setSyncVals] = useState<Record<string, string>>({});
   const [loadError, setLoadError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [busyKey, runBusy] = useBusyKey();
 
   const load = useCallback(() => {
     void api<{ items: MerchItem[] }>('/api/admin/merch')
@@ -59,6 +62,7 @@ export function MerchManager(): React.ReactElement {
 
   const submit = (e: React.FormEvent): void => {
     e.preventDefault();
+    if (saving) return;
     let sizes: string[] | null = null;
     if (form.sizes.trim()) {
       try {
@@ -89,17 +93,22 @@ export function MerchManager(): React.ReactElement {
     }
     const url = editId ? `/api/admin/merch/${editId}` : '/api/admin/merch';
     const method = editId ? 'PATCH' : 'POST';
-    void api(url, { method, body: JSON.stringify(payload) }).then((res) => {
-      if (!res.ok) {
-        const b = res.body as { issues?: { message?: string }[]; error?: string };
-        setMsg(b.issues?.[0]?.message ?? b.error ?? JSON.stringify(res.body));
-        return;
-      }
-      setMsg(editId ? 'Updated' : 'Created as Draft — hit Publish to go public');
-      if (!editId) setForm(EMPTY_FORM);
-      setEditId(null);
-      load();
-    });
+    setSaving(true);
+    void api(url, { method, body: JSON.stringify(payload) })
+      .then((res) => {
+        if (!res.ok) {
+          const b = res.body as { issues?: { message?: string }[]; error?: string };
+          setMsg(b.issues?.[0]?.message ?? b.error ?? JSON.stringify(res.body));
+          return;
+        }
+        setMsg(editId ? 'Updated' : 'Created as Draft — hit Publish to go public');
+        if (!editId) setForm(EMPTY_FORM);
+        setEditId(null);
+        load();
+      })
+      .finally(() => {
+        setSaving(false);
+      });
   };
 
   const startEdit = (m: MerchItem): void => {
@@ -158,13 +167,18 @@ export function MerchManager(): React.ReactElement {
               onClick={() => {
                 const v = parseInt(syncVals[m.sku] ?? '', 10);
                 if (isNaN(v)) return;
-                void api('/api/admin/sync/merch', {
-                  method: 'POST',
-                  body: JSON.stringify({ sku: m.sku, sold: v }),
-                }).then(() => load());
+                runBusy(
+                  `sync-${m.id}`,
+                  api('/api/admin/sync/merch', {
+                    method: 'POST',
+                    body: JSON.stringify({ sku: m.sku, sold: v }),
+                  }).then(() => load()),
+                );
               }}
+              disabled={busyKey === `sync-${m.id}`}
+              aria-busy={busyKey === `sync-${m.id}`}
             >
-              Sync sold
+              {busyKey === `sync-${m.id}` ? <Spinner /> : null} Sync sold
             </button>
             <button
               type="button"
@@ -172,31 +186,41 @@ export function MerchManager(): React.ReactElement {
               onClick={() => {
                 const v = parseInt(syncVals[m.sku] ?? '', 10);
                 if (isNaN(v)) return;
-                void api('/api/admin/sync/merch', {
-                  method: 'POST',
-                  body: JSON.stringify({ sku: m.sku, delta: v }),
-                }).then(() => load());
+                runBusy(
+                  `delta-${m.id}`,
+                  api('/api/admin/sync/merch', {
+                    method: 'POST',
+                    body: JSON.stringify({ sku: m.sku, delta: v }),
+                  }).then(() => load()),
+                );
               }}
+              disabled={busyKey === `delta-${m.id}`}
+              aria-busy={busyKey === `delta-${m.id}`}
             >
-              +Delta
+              {busyKey === `delta-${m.id}` ? <Spinner /> : null} +Delta
             </button>
             <button
               type="button"
               className="btn small"
               onClick={() => {
-                void api(`/api/admin/merch/${m.id}/publish`, {
-                  method: 'PATCH',
-                  body: JSON.stringify({ is_published: !m.is_published }),
-                }).then((res) => {
-                  if (!res.ok) {
-                    alert((res.body as { error?: string }).error ?? 'Publish failed');
-                    return;
-                  }
-                  load();
-                });
+                runBusy(
+                  `pub-${m.id}`,
+                  api(`/api/admin/merch/${m.id}/publish`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ is_published: !m.is_published }),
+                  }).then((res) => {
+                    if (!res.ok) {
+                      alert((res.body as { error?: string }).error ?? 'Publish failed');
+                      return;
+                    }
+                    load();
+                  }),
+                );
               }}
+              disabled={busyKey === `pub-${m.id}`}
+              aria-busy={busyKey === `pub-${m.id}`}
             >
-              {draft ? 'Publish' : 'Unpublish'}
+              {busyKey === `pub-${m.id}` ? <Spinner /> : null} {draft ? 'Publish' : 'Unpublish'}
             </button>
             <button type="button" className="btn small" onClick={() => startEdit(m)}>
               Edit
@@ -206,10 +230,15 @@ export function MerchManager(): React.ReactElement {
               className="btn small"
               onClick={() => {
                 if (!confirm('Delete this merch item?')) return;
-                void api(`/api/admin/merch/${m.id}`, { method: 'DELETE' }).then(() => load());
+                runBusy(
+                  `del-${m.id}`,
+                  api(`/api/admin/merch/${m.id}`, { method: 'DELETE' }).then(() => load()),
+                );
               }}
+              disabled={busyKey === `del-${m.id}`}
+              aria-busy={busyKey === `del-${m.id}`}
             >
-              Delete
+              {busyKey === `del-${m.id}` ? <Spinner /> : null} Delete
             </button>
           </div>
         </div>
@@ -321,8 +350,8 @@ export function MerchManager(): React.ReactElement {
             <p className="hint">Per-item override; global MONNIFY_PAYMENT_BASE_URL used per-cart</p>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button type="submit" className="btn primary">
-              {editId ? 'Update merch' : 'Create draft'}
+            <button type="submit" className="btn primary" disabled={saving} aria-busy={saving}>
+              {saving ? <Spinner /> : null} {editId ? 'Update merch' : 'Create draft'}
             </button>
             {editId ? (
               <button

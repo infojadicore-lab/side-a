@@ -4,7 +4,32 @@ import { get } from '../../lib/api.js';
 import type { HomeData, Song } from '../../lib/types.js';
 import { formatEditionDate, naira } from '../../lib/format.js';
 import { WaveformBlock } from '../layout.js';
-import { YouTubeLogo, isYouTubeUrl } from '../../lib/youtube.js';
+import { useYouTubePlayer } from '../../lib/youtube.js';
+
+function NowSpinningCard({ now }: { now: NonNullable<HomeData['nowSpinning']> | Song }): React.ReactElement {
+  const yt = useYouTubePlayer(now.youtube_url ?? now.link);
+  return (
+    <div className="card">
+      <p className="track-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {now.title}
+        {yt.toggle}
+      </p>
+      <p className="track-meta">
+        Picked by {now.picked_by} · week {now.week_number}
+      </p>
+      <p className="track-note">{now.note}</p>
+      {yt.embed}
+      <div className="link-row">
+        <Link className="linklike" to="/song">
+          React and comment
+        </Link>
+        <Link className="linklike" to="/submit">
+          Recommend next week&apos;s pick
+        </Link>
+      </div>
+    </div>
+  );
+}
 
 export function HomePage(): React.ReactElement {
   const [home, setHome] = useState<HomeData | null>(null);
@@ -56,26 +81,7 @@ export function HomePage(): React.ReactElement {
             <p className="board-empty">Loading…</p>
           </div>
         ) : now ? (
-          <div className="card">
-            <p className="track-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {now.title}
-              {(now.youtube_url ?? now.link) && isYouTubeUrl(now.youtube_url ?? now.link ?? null) ? (
-                <YouTubeLogo url={(now.youtube_url ?? now.link) as string} />
-              ) : null}
-            </p>
-            <p className="track-meta">
-              Picked by {now.picked_by} · week {now.week_number}
-            </p>
-            <p className="track-note">{now.note}</p>
-            <div className="link-row">
-              <Link className="linklike" to="/song">
-                React and comment
-              </Link>
-              <Link className="linklike" to="/submit">
-                Recommend next week&apos;s pick
-              </Link>
-            </div>
-          </div>
+          <NowSpinningCard now={now} />
         ) : (
           <div className="card">
             <p className="board-empty">No song of the week yet — submit and vote to pick one.</p>
