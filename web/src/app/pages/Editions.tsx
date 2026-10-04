@@ -41,40 +41,26 @@ export function EditionsPage(): React.ReactElement {
     <section className="screen active">
       <h2 className="section-title">Editions</h2>
       <p className="lede">
-        Each edition is one album, played front to back, with brunch alongside it. Arrive on time — we start the
-        record together.
+        Each edition is one album, played from start to finish, with brunch on the side. Please arrive on time. We
+        start the record together.
       </p>
       {total === 0 && past && upcoming ? (
-        <p className="board-empty">Upcoming and past editions would be shown here.</p>
+        <p className="board-empty">Editions will show up here.</p>
       ) : (
         <>
           <div style={{ marginTop: 28 }}>
-            <p className="panel-label">Upcoming — most upcoming highlighted</p>
+            <p className="panel-label">Upcoming</p>
             {upcomingAll.length === 0 ? (
-              <p className="board-empty">No upcoming editions — check back soon.</p>
+              <p className="board-empty">No upcoming editions yet. Please check back soon.</p>
             ) : (
-              upcomingAll.map((u, idx) => {
-                const highlight = idx === 0;
+              upcomingAll.map((u) => {
                 return (
-                  <div
-                    key={u.id}
-                    className="card edition-card"
-                    style={
-                      highlight
-                        ? { marginTop: 12, border: '2px solid var(--gold)', boxShadow: '0 0 0 1px var(--gold-dim)' }
-                        : { marginTop: 12 }
-                    }
-                  >
+                  <div key={u.id} className="card edition-card" style={{ marginTop: 12 }}>
                     <div className="edition-index">{String(u.idx).padStart(2, '0')}</div>
                     <div className="edition-body">
                       <p className="edition-album">
                         {u.name || u.album}{' '}
                         <span className="kind-badge">{u.kind === 'virtual' ? 'Virtual' : 'Physical'}</span>
-                        {highlight ? (
-                          <span className="pill" style={{ color: 'var(--gold)', borderColor: 'var(--gold)' }}>
-                            ● Most upcoming
-                          </span>
-                        ) : null}
                       </p>
                       <p className="edition-artist">{u.artist}</p>
                       <p className="edition-meta">
@@ -90,10 +76,10 @@ export function EditionsPage(): React.ReactElement {
                         </p>
                         {u.tix_africa_url ? (
                           <a className="btn primary small" href={u.tix_africa_url} target="_blank" rel="noopener noreferrer">
-                            Get tickets on Tix Africa
+                            Get tickets
                           </a>
                         ) : (
-                          <span className="pill">Tix Africa link not set</span>
+                          <span className="pill">Tickets coming soon</span>
                         )}
                       </div>
                     </div>
@@ -103,7 +89,7 @@ export function EditionsPage(): React.ReactElement {
             )}
           </div>
           <div style={{ marginTop: 36 }}>
-            <p className="panel-label">Past editions — sorted by date (most recent first, desc)</p>
+            <p className="panel-label">Past editions</p>
             {pastEditions.length === 0 ? (
               <p className="board-empty">{pastTotal === 0 ? 'No past editions yet.' : 'No past editions on this page.'}</p>
             ) : (
@@ -132,7 +118,7 @@ export function EditionsPage(): React.ReactElement {
             {pastTotal > LIMIT ? (
               <>
                 <button type="button" className="btn small" disabled={page <= 1} onClick={() => gotoPage('prev')}>
-                  Prev
+                  Previous
                 </button>
                 {Array.from({ length: pastTotalPages }, (_, i) => i + 1).map((p) => (
                   <button

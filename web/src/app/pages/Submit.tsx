@@ -32,10 +32,9 @@ export function SubmitPage(): React.ReactElement {
       <section className="screen active">
         <h2 className="section-title">Recommend a track</h2>
         <div className="rec-success show">
-          <p className="title">Got it.</p>
+          <p className="title">Thank you.</p>
           <p className="body">
-            Your recommendation is in the queue. If it&apos;s picked, it runs as an upcoming Song of the week and
-            you&apos;ll get a shout when it does.
+            Your pick is in the queue. If we play it, we will give you a shout.
           </p>
         </div>
       </section>
@@ -46,8 +45,8 @@ export function SubmitPage(): React.ReactElement {
     <section className="screen active">
       <h2 className="section-title">Recommend a track</h2>
       <p className="lede">
-        Put a song or album up for the community. If it fits, it runs as a future Song of the week — with your name on
-        it.
+        Put a song or album up for the community. If we pick it, it plays as a future Song of the week, with your
+        name on it.
       </p>
       <form className="rec-form" onSubmit={submit} noValidate>
         <div className="field">
@@ -66,7 +65,7 @@ export function SubmitPage(): React.ReactElement {
           <input
             type="text"
             id="rec-track"
-            placeholder="Optimistic — Sounds of Blackness"
+            placeholder="e.g. Optimistic by Sounds of Blackness"
             value={track}
             onChange={(e) => setTrack(e.target.value)}
           />
@@ -87,7 +86,7 @@ export function SubmitPage(): React.ReactElement {
           <input
             type="text"
             id="rec-link"
-            placeholder="Optional — Spotify, Apple Music, YouTube"
+            placeholder="Spotify, Apple Music or YouTube link (optional)"
             value={link}
             onChange={(e) => setLink(e.target.value)}
           />

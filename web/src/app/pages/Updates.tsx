@@ -80,7 +80,7 @@ export function UpdatesPage(): React.ReactElement {
         {updates === null ? (
           <p className="board-empty">Loading updates…</p>
         ) : updates.length === 0 ? (
-          <p className="board-empty">No updates yet.</p>
+          <p className="board-empty">No updates yet. Please check back soon.</p>
         ) : (
           updates.map((u) => <UpdateRow key={u.id} u={u} />)
         )}

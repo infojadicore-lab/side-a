@@ -66,15 +66,15 @@ export function HomePage(): React.ReactElement {
         <p className="eyebrow">A monthly album listening brunch, Lagos</p>
         <h1>Find your frequency.</h1>
         <p className="hero-tag">
-          One album, front to back, with food, drinks and people who&apos;d rather sit with a record than talk over it.
+          One album, from start to finish. Good food, good drinks, and people who listen together.
         </p>
         <WaveformBlock />
       </div>
       <div>
-        <p className="panel-label">Now spinning — the community&apos;s pick this week</p>
+        <p className="panel-label">Now spinning</p>
         {error ? (
           <div className="card">
-            <p className="board-empty">Failed to load home.</p>
+            <p className="board-empty">We could not load this page. Please try again.</p>
           </div>
         ) : !home ? (
           <div className="card">
@@ -84,7 +84,7 @@ export function HomePage(): React.ReactElement {
           <NowSpinningCard now={now} />
         ) : (
           <div className="card">
-            <p className="board-empty">No song of the week yet — submit and vote to pick one.</p>
+            <p className="board-empty">No song of the week yet. Submit a song and vote to pick one.</p>
           </div>
         )}
       </div>
@@ -113,7 +113,7 @@ export function HomePage(): React.ReactElement {
           </div>
         ) : (
           <div className="card">
-            <p className="board-empty">No upcoming edition yet. Stay jiggy 😉</p>
+            <p className="board-empty">No upcoming edition yet. Please check back soon.</p>
           </div>
         )}
       </div>

@@ -169,7 +169,7 @@ function SongRow({ song }: { song: Song }): React.ReactElement {
           {needsCommentAuth ? (
             <div ref={commentPromptRef} className="auth-prompt">
               <p className="board-empty" style={{ padding: 0 }}>
-                Sign in to comment — join the conversation.
+                Sign in to comment and join the conversation.
               </p>
               <SignInButton contextLabel="commenting" />
             </div>
@@ -274,26 +274,26 @@ export function SongPage(): React.ReactElement {
     <section className="screen active">
       <h2 className="section-title">Song of the week</h2>
       <p className="lede">
-        Every week, one member&apos;s pick runs the room. React with how it landed, or drop a comment. Anyone can put
-        a song up next — see Submit.
+        Every week, we play one member&apos;s pick. Tell us how it landed, or leave a comment. You can put a song up
+        next on the Submit page.
       </p>
       <div className="card" style={{ marginTop: 26, padding: '6px 20px' }}>
         {songs === null ? (
           <p className="board-empty">Loading songs…</p>
         ) : songs.length === 0 ? (
           <p className="board-empty">
-            No songs yet — submissions that get picked will appear here. Each week card shows reactions and comments.
+            No songs yet. Songs we pick will show up here, with reactions and comments.
           </p>
         ) : (
           songs.map((s) => <SongRow key={s.id} song={s} />)
         )}
       </div>
       <div className="card" style={{ marginTop: 16, padding: '6px 20px' }}>
-        <p className="panel-label">Board — top 12 this week</p>
+        <p className="panel-label">Top 12 this week</p>
         {board === null ? (
           <p className="board-empty">Loading board…</p>
         ) : board.length === 0 ? (
-          <p className="board-empty">New week — be the first to submit. Top 12 will appear here as votes come in.</p>
+          <p className="board-empty">A new week just started. Be the first to submit. The top 12 will show up here as votes come in.</p>
         ) : (
           board.map((e, i) => (
             <div key={e.id} className="board-row">
@@ -335,7 +335,7 @@ export function SongPage(): React.ReactElement {
                     className="auth-prompt"
                   >
                     <p className="board-empty" style={{ padding: 0 }}>
-                      Sign in to vote — your pick counts.
+                      Sign in to vote. Your pick counts.
                     </p>
                     <SignInButton contextLabel="voting" />
                   </div>

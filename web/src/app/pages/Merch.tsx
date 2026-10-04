@@ -31,13 +31,14 @@ export function MerchPage(): React.ReactElement {
     <section className="screen active">
       <h2 className="section-title">Merch</h2>
       <p className="lede">
-        First drop is preorder only — made once we know the count, shipped or handed over at the next edition.
+        Our first drop is preorder only. We make it once we know the count. Pick it up at the next edition, or we
+        ship it to you.
       </p>
       <div className="merch-grid" id="merch-grid">
         {items === null ? (
           <p className="board-empty">Loading merch…</p>
         ) : items.length === 0 ? (
-          <p className="board-empty">{failed ? 'Failed to load merch.' : 'Coming soon.......'}</p>
+          <p className="board-empty">{failed ? 'We could not load the merch. Please try again.' : 'No merch right now. Please check back soon.'}</p>
         ) : (
           items.map((m) => (
             <div key={m.sku} className="card merch-card">
@@ -94,8 +95,8 @@ export function MerchPage(): React.ReactElement {
       <div className="order-confirm" id="order-confirm">
         <p className="title">Order in.</p>
         <p className="body">
-          Preordered pieces are made once and shipped mid November. In-stock pieces are held for you at Edition 04. A
-          confirmation is on its way to your inbox.
+          Thank you. Preordered pieces are made once, then shipped. In-stock pieces will wait for you at the next
+          edition. We sent a confirmation to your inbox.
         </p>
       </div>
     </section>
