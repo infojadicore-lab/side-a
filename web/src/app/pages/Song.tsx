@@ -124,7 +124,7 @@ function SongRow({ song }: { song: Song }): React.ReactElement {
 
   return (
     <div className={`track-row${song.is_current ? ' current' : ''}`}>
-      <div className="track-num">{song.week_number}</div>
+      <div className="track-num">Week {song.week_number}</div>
       <div className="track-main">
         {song.is_current ? <span className="now-badge">Now playing</span> : null}
         <p className="title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
