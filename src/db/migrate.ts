@@ -6,10 +6,9 @@ import postgres from 'postgres';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-async function migrate(): Promise<void> {
+export async function runMigrations(): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) throw new Error('DATABASE_URL is required');
-
   // Match src/db/index.ts: Supabase pooler (PgBouncer transaction mode) rejects
   // prepared statements, so PG_PREPARE=false disables them here too.
   const sql = postgres(databaseUrl, {
@@ -57,7 +56,10 @@ async function migrate(): Promise<void> {
   }
 }
 
-migrate().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+const invokedAsCli = (process.argv[1] ?? '').endsWith('migrate.ts') || process.argv[1]?.endsWith('migrate.js');
+if (invokedAsCli) {
+  runMigrations().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
