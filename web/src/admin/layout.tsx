@@ -74,6 +74,7 @@ export function AdminShell(): React.ReactElement {
     <>
       <LegacyHashRedirect />
       <ScrollToTop />
+      <img className="bg-watermark" src={logoUrl} alt="" aria-hidden="true" />
       <header className="top">
         <div className="top-inner">
           <Link to={adminBase() || '/admin'} className="brand-logo" aria-label="Side A Admin — dashboard">

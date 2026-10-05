@@ -82,6 +82,7 @@ function Shell(): React.ReactElement {
   return (
     <>
       <ScrollToTop />
+      <img className="bg-watermark" src={logoUrl} alt="" aria-hidden="true" />
       <header className="top">
         <div className="top-inner">
           <Link to="/" className="brand-logo" aria-label="Side A Lagos — home">
